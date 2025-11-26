@@ -15,7 +15,6 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -56,63 +55,30 @@ const Auth = () => {
         return;
       }
 
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            toast({
-              title: "Erro no login",
-              description: "Email ou senha incorretos",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Erro no login",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Erro no login",
+            description: "Email ou senha incorretos",
+            variant: "destructive",
+          });
         } else {
           toast({
-            title: "Login realizado!",
-            description: "Bem-vindo de volta",
+            title: "Erro no login",
+            description: error.message,
+            variant: "destructive",
           });
         }
       } else {
-        const redirectUrl = `${window.location.origin}/dashboard`;
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-          },
+        toast({
+          title: "Login realizado!",
+          description: "Bem-vindo de volta",
         });
-
-        if (error) {
-          if (error.message.includes("already registered")) {
-            toast({
-              title: "Email já cadastrado",
-              description: "Use este email para fazer login",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Erro no cadastro",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
-        } else {
-          toast({
-            title: "Cadastro realizado!",
-            description: "Você já pode fazer login",
-          });
-          setIsLogin(true);
-        }
       }
     } catch (error) {
       toast({
@@ -132,9 +98,7 @@ const Auth = () => {
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             VN TICKET
           </CardTitle>
-          <CardDescription>
-            {isLogin ? "Entre com sua conta administrativa" : "Criar nova conta administrativa"}
-          </CardDescription>
+          <CardDescription>Entre com sua conta administrativa</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
@@ -164,19 +128,9 @@ const Auth = () => {
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLogin ? "Entrar" : "Cadastrar"}
+              Entrar
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
-              disabled={loading}
-            >
-              {isLogin ? "Não tem uma conta? Cadastre-se" : "Já tem uma conta? Entre"}
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>
