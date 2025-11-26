@@ -225,8 +225,7 @@ const Scanner = () => {
             <div 
               id="qr-reader" 
               ref={scannerRef}
-              className="w-full rounded-lg overflow-hidden"
-              style={{ display: scanning ? 'block' : 'none' }}
+              className="w-full rounded-lg overflow-hidden min-h-[260px] bg-black/80"
             />
 
             {!scanning && !validating && (
