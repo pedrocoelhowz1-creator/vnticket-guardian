@@ -23,8 +23,8 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ status: 'error', reason: 'Não autorizado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ status: 'error', reason: 'Não autorizado (sem token)' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -40,8 +40,8 @@ Deno.serve(async (req) => {
     if (authError || !user) {
       console.error('Auth error:', authError);
       return new Response(
-        JSON.stringify({ status: 'error', reason: 'Não autorizado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ status: 'error', reason: 'Não autorizado (token inválido)' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     if (!qrPayload || !eventId) {
       return new Response(
         JSON.stringify({ status: 'invalid', reason: 'QR Code ou evento não fornecido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
       console.error('Failed to decode QR:', e);
       return new Response(
         JSON.stringify({ status: 'invalid', reason: 'QR Code inválido ou corrompido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -307,7 +307,7 @@ Deno.serve(async (req) => {
     console.error('Unexpected error:', error);
     return new Response(
       JSON.stringify({ status: 'error', reason: 'Erro interno do servidor' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
