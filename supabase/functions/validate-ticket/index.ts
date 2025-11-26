@@ -71,10 +71,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create client for VN TICKET Supabase (for data validation)
-    const vnTicketUrl = Deno.env.get('VN_TICKET_SUPABASE_URL')!;
-    const vnTicketKey = Deno.env.get('VN_TICKET_SUPABASE_SERVICE_KEY')!;
-    const vnTicketSupabase = createClient(vnTicketUrl, vnTicketKey);
+    // Usar o MESMO projeto Supabase para validar os dados (mesmas tabelas)
+    // Reutilizamos o client `supabase` já criado com a SERVICE_ROLE_KEY
 
     // Validate event ID matches
     if (decodedPayload.id_evento !== eventId) {
@@ -102,8 +100,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check vendas table in VN Ticket database
-    const { data: venda, error: vendaError } = await vnTicketSupabase
+    // Check vendas table no mesmo banco
+    const { data: venda, error: vendaError } = await supabase
       .from('vendas')
       .select('*')
       .eq('id_compra', decodedPayload.id_compra)
@@ -208,8 +206,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Cross-check with purchases table
-    const { data: purchase, error: purchaseError } = await vnTicketSupabase
+    // Cross-check with purchases table no mesmo banco
+    const { data: purchase, error: purchaseError } = await supabase
       .from('purchases')
       .select('*')
       .eq('id', decodedPayload.id_ingresso)
@@ -264,8 +262,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // All validations passed! Mark as used
-    const { error: updateError } = await vnTicketSupabase
+    // All validations passed! Mark as used no mesmo banco
+    const { error: updateError } = await supabase
       .from('vendas')
       .update({ 
         status: 'utilizado',
