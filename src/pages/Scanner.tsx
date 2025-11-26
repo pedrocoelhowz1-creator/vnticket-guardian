@@ -125,24 +125,36 @@ const Scanner = () => {
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('validate-ticket', {
-        body: { qrPayload, eventId },
-      });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
 
-      // Se veio um erro MAS também veio um corpo de resposta, tratamos como resposta normal da função
-      if (!data && error) {
-        console.error("Validation error sem corpo de resposta:", error);
+      if (!accessToken) {
         setResult({
           status: 'error',
-          reason: 'Erro ao validar ingresso',
+          reason: 'Usuário não autenticado',
         });
         toast({
-          title: "Erro na validação",
-          description: error.message || "Erro ao comunicar com servidor",
+          title: "Erro de autenticação",
+          description: "Faça login novamente para validar ingressos.",
           variant: "destructive",
         });
+        navigate("/auth");
         return;
       }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/validate-ticket`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ qrPayload, eventId }),
+        }
+      );
+
+      const data = await response.json();
 
       setResult(data);
 
