@@ -129,8 +129,9 @@ const Scanner = () => {
         body: { qrPayload, eventId },
       });
 
-      if (error) {
-        console.error("Validation error:", error);
+      // Se veio um erro MAS também veio um corpo de resposta, tratamos como resposta normal da função
+      if (!data && error) {
+        console.error("Validation error sem corpo de resposta:", error);
         setResult({
           status: 'error',
           reason: 'Erro ao validar ingresso',
