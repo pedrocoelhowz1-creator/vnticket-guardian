@@ -45,7 +45,12 @@ const Scanner = () => {
     return () => {
       subscription.unsubscribe();
       if (html5QrcodeRef.current) {
-        html5QrcodeRef.current.stop();
+        html5QrcodeRef.current
+          .stop()
+          .then(() => html5QrcodeRef.current?.clear())
+          .catch((error) => {
+            console.error("Error stopping scanner on cleanup:", error);
+          });
       }
     };
   }, [navigate]);
@@ -61,6 +66,16 @@ const Scanner = () => {
     }
 
     try {
+      // Se já existir uma instância, garante que ela foi parada e limpa antes
+      if (html5QrcodeRef.current) {
+        try {
+          await html5QrcodeRef.current.stop();
+          await html5QrcodeRef.current.clear();
+        } catch (innerError) {
+          console.warn("Falha ao limpar instância anterior do scanner:", innerError);
+        }
+      }
+
       const scanner = new Html5Qrcode("qr-reader");
       html5QrcodeRef.current = scanner;
 
@@ -87,14 +102,16 @@ const Scanner = () => {
   };
 
   const stopScanner = async () => {
-    if (html5QrcodeRef.current) {
-      try {
-        await html5QrcodeRef.current.stop();
-        html5QrcodeRef.current = null;
-        setScanning(false);
-      } catch (error) {
-        console.error("Error stopping scanner:", error);
-      }
+    if (!html5QrcodeRef.current) return;
+
+    try {
+      await html5QrcodeRef.current.stop();
+      await html5QrcodeRef.current.clear();
+    } catch (error) {
+      console.error("Error stopping/clearing scanner:", error);
+    } finally {
+      html5QrcodeRef.current = null;
+      setScanning(false);
     }
   };
 
