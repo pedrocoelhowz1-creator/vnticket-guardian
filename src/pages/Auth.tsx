@@ -55,7 +55,7 @@ const Auth = () => {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -74,11 +74,29 @@ const Auth = () => {
             variant: "destructive",
           });
         }
-      } else {
-        toast({
-          title: "Login realizado!",
-          description: "Bem-vindo de volta",
-        });
+      } else if (authData.user) {
+        // Verificar se o usuário tem role de admin
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', authData.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (roleError || !roleData) {
+          // Usuário não é admin - fazer logout
+          await supabase.auth.signOut();
+          toast({
+            title: "Acesso negado",
+            description: "Apenas administradores podem acessar este sistema",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Login realizado!",
+            description: "Bem-vindo de volta",
+          });
+        }
       }
     } catch (error) {
       toast({
