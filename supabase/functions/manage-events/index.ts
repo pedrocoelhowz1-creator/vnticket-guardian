@@ -64,18 +64,11 @@ Deno.serve(async (req) => {
     
     console.log('User authenticated:', user.id);
 
-    // Connect to VN Ticket Supabase
-    // Keys do VN Ticket já configuradas
-    const vnTicketUrl = 'https://qqdtwekialqpakjgbonh.supabase.co';
-    const vnTicketKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZHR3ZWtpYWxxcGFramdib25oIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzA2MjI5OCwiZXhwIjoyMDc4NjM4Mjk4fQ.L2HzDsxcXHjS0RQQmvhD7nFn7v5KigkHWJqsbyoxPv4';
-
-    const vnTicket = createClient(vnTicketUrl, vnTicketKey, {
-      auth: {
-        persistSession: false
-      }
-    });
-    console.log('VN Ticket client created successfully');
-    console.log('VN Ticket URL:', vnTicketUrl);
+    // Usa o mesmo Supabase (Guardian e VN Ticket são o mesmo projeto)
+    // Não precisa conectar a outro banco, usa o mesmo cliente
+    const vnTicket = supabase;
+    console.log('Using same Supabase client (Guardian = VN Ticket)');
+    console.log('Supabase URL:', supabaseUrl);
 
     const url = new URL(req.url);
     let action = url.searchParams.get('action');
@@ -116,6 +109,7 @@ Deno.serve(async (req) => {
       }
 
       case 'POST': {
+        // Lê o body primeiro
         let body: any = {};
         try {
           const bodyText = await req.text();
@@ -127,32 +121,47 @@ Deno.serve(async (req) => {
           console.log('No body or invalid JSON, using empty object');
         }
         
-        // Se action for 'list' ou não houver action, lista eventos
-        // Action já foi normalizada acima
-        console.log('=== POST REQUEST ===');
-        console.log('Checking action in POST:', action);
-        console.log('Action type:', typeof action);
-        console.log('Action value:', JSON.stringify(action));
-        console.log('Action === "list":', action === 'list');
-        console.log('Action is null:', action === null);
-        console.log('Action is undefined:', action === undefined);
-        console.log('Action is empty string:', action === '');
-        console.log('Action is falsy:', !action);
-        console.log('All URL params:', Object.fromEntries(url.searchParams.entries()));
+        // Re-lê a action da URL para garantir (pode ter mudado)
+        const actionFromUrl = url.searchParams.get('action');
+        let normalizedAction = actionFromUrl ? String(actionFromUrl).trim().toLowerCase() : null;
         
+        // Se action não foi lida, tenta usar a variável action
+        if (!normalizedAction && action) {
+          normalizedAction = String(action).trim().toLowerCase();
+        }
+        
+        console.log('=== POST REQUEST ===');
+        console.log('Original action variable:', action);
+        console.log('Action from URL (re-read):', actionFromUrl);
+        console.log('Normalized action:', normalizedAction);
+        console.log('All URL params:', Object.fromEntries(url.searchParams.entries()));
+        console.log('URL search:', url.search);
+        
+        // Se action for 'list' ou não houver action, lista eventos
         // Verifica de várias formas para garantir que funciona
-        const isListAction = action === 'list' || 
-                            action === null || 
-                            action === undefined || 
-                            action === '' ||
-                            String(action).toLowerCase().trim() === 'list';
+        const isListAction = normalizedAction === 'list' || 
+                            normalizedAction === null || 
+                            normalizedAction === undefined || 
+                            normalizedAction === '' ||
+                            action === 'list' ||
+                            String(action).toLowerCase().trim() === 'list' ||
+                            !action ||
+                            !normalizedAction;
         
         console.log('isListAction:', isListAction);
+        console.log('normalizedAction === "list":', normalizedAction === 'list');
+        console.log('normalizedAction is null/undefined/empty:', !normalizedAction);
         
-        if (isListAction) {
+        // SEMPRE tenta listar se não for create, update ou delete explícito
+        const isExplicitAction = normalizedAction === 'create' || normalizedAction === 'update' || normalizedAction === 'delete';
+        
+        if (!isExplicitAction || isListAction) {
           // List events via POST
-          console.log('=== LISTING EVENTS ===');
-          console.log('Action:', action);
+          console.log('=== LISTING EVENTS (POST) ===');
+          console.log('Action (original):', action);
+          console.log('Action (normalized):', normalizedAction);
+          console.log('isExplicitAction:', isExplicitAction);
+          console.log('isListAction:', isListAction);
           console.log('VN Ticket URL:', vnTicketUrl);
           console.log('VN Ticket Key configured:', vnTicketKey ? 'Yes' : 'No');
           
@@ -325,7 +334,7 @@ Deno.serve(async (req) => {
           }
         }
         
-        if (action === 'create') {
+        if (normalizedAction === 'create' || action === 'create') {
           const { data, error } = await vnTicket
             .from('events')
             .insert([{
@@ -351,7 +360,7 @@ Deno.serve(async (req) => {
           });
         }
 
-        if (action === 'update') {
+        if (normalizedAction === 'update' || action === 'update') {
           const { id, ...updates } = body;
           
           // Limpa campos vazios e converte para null quando apropriado
@@ -390,7 +399,7 @@ Deno.serve(async (req) => {
           });
         }
 
-        if (action === 'delete') {
+        if (normalizedAction === 'delete' || action === 'delete') {
           const { id } = body;
           
           const { error } = await vnTicket
