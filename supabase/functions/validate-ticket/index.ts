@@ -55,6 +55,27 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Verificar se o usuário tem role de admin
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (roleError || !roleData) {
+      console.error('User is not admin:', user.id);
+      return new Response(JSON.stringify({
+        status: 'error',
+        reason: 'Acesso negado. Apenas administradores podem validar ingressos.'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('User is admin, proceeding with ticket validation...');
+
     // Parse request body
     const { qrPayload, eventId } = await req.json();
 
