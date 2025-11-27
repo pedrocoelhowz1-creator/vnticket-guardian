@@ -48,8 +48,13 @@ Deno.serve(async (req) => {
     const vnTicketUrl = 'https://qqdtwekialqpakjgbonh.supabase.co';
     const vnTicketKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZHR3ZWtpYWxxcGFramdib25oIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzA2MjI5OCwiZXhwIjoyMDc4NjM4Mjk4fQ.L2HzDsxcXHjS0RQQmvhD7nFn7v5KigkHWJqsbyoxPv4';
 
-    const vnTicket = createClient(vnTicketUrl, vnTicketKey);
+    const vnTicket = createClient(vnTicketUrl, vnTicketKey, {
+      auth: {
+        persistSession: false
+      }
+    });
     console.log('VN Ticket client created successfully');
+    console.log('VN Ticket URL:', vnTicketUrl);
 
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
@@ -83,7 +88,7 @@ Deno.serve(async (req) => {
         let body: any = {};
         try {
           const bodyText = await req.text();
-          if (bodyText) {
+          if (bodyText && bodyText.trim()) {
             body = JSON.parse(bodyText);
           }
         } catch (e) {
@@ -91,28 +96,49 @@ Deno.serve(async (req) => {
           console.log('No body or invalid JSON, using empty object');
         }
         
-        if (action === 'list' || !action) {
+        // Se action for 'list' ou não houver action, lista eventos
+        if (action === 'list' || action === null || action === undefined) {
           // List events via POST
           console.log('Fetching events from VN Ticket (POST)...');
-          console.log('VN Ticket URL:', vnTicketUrl ? 'configured' : 'missing');
+          console.log('Action:', action);
+          console.log('VN Ticket URL:', vnTicketUrl);
           
-          const { data, error } = await vnTicket
-            .from('events')
-            .select('*')
-            .order('date', { ascending: true });
+          try {
+            const { data, error } = await vnTicket
+              .from('events')
+              .select('*')
+              .order('date', { ascending: true });
 
-          if (error) {
-            console.error('Error fetching events:', error);
-            console.error('Error details:', JSON.stringify(error, null, 2));
-            throw new Error(`Erro ao buscar eventos: ${error.message || JSON.stringify(error)}`);
+            if (error) {
+              console.error('Error fetching events:', error);
+              console.error('Error details:', JSON.stringify(error, null, 2));
+              return new Response(JSON.stringify({ 
+                error: `Erro ao buscar eventos: ${error.message || JSON.stringify(error)}`,
+                events: []
+              }), {
+                status: 500,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+
+            console.log(`Found ${data?.length || 0} events`);
+            
+            return new Response(JSON.stringify({ 
+              events: data || [] 
+            }), {
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          } catch (dbError: any) {
+            console.error('Database error:', dbError);
+            return new Response(JSON.stringify({ 
+              error: `Erro ao conectar com o banco: ${dbError.message || 'Erro desconhecido'}`,
+              events: []
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
           }
-
-          console.log(`Found ${data?.length || 0} events`);
-          
-          return new Response(JSON.stringify({ events: data || [] }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
         }
         
         if (action === 'create') {
@@ -193,12 +219,17 @@ Deno.serve(async (req) => {
   } catch (error: unknown) {
     console.error('Error in manage-events function:', error);
     
-    let message = 'Erro interno';
+    let message = 'Erro interno do servidor';
+    let details = undefined;
+    
     if (error instanceof Error) {
-      message = error.message;
+      message = error.message || 'Erro desconhecido';
+      details = error.stack;
     } else if (typeof error === 'object' && error !== null) {
       try {
-        message = JSON.stringify(error);
+        const errorObj = error as any;
+        message = errorObj.message || errorObj.error || JSON.stringify(error);
+        details = errorObj.details || errorObj.stack;
       } catch {
         message = String(error);
       }
@@ -207,10 +238,13 @@ Deno.serve(async (req) => {
     }
     
     console.error('Error message:', message);
+    if (details) {
+      console.error('Error details:', details);
+    }
     
     return new Response(JSON.stringify({ 
       error: message,
-      details: error instanceof Error ? error.stack : undefined
+      events: []
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
