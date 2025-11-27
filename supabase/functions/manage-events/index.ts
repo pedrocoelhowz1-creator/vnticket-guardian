@@ -6,14 +6,25 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  console.log('=== EDGE FUNCTION CALLED ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', Object.fromEntries(req.headers.entries()));
+  
   if (req.method === 'OPTIONS') {
+    console.log('OPTIONS request - returning CORS headers');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('Processing request...');
+    
     // Auth check
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
+      console.error('No authorization header');
       return new Response(JSON.stringify({ error: 'Não autorizado' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -23,7 +34,11 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     
+    console.log('Supabase URL configured:', !!supabaseUrl);
+    console.log('Supabase Key configured:', !!supabaseKey);
+    
     if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase configuration');
       return new Response(JSON.stringify({ error: 'Configuração inválida' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -31,17 +46,23 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase client created');
 
     // Verify user
     const token = authHeader.replace('Bearer ', '');
+    console.log('Verifying user token...');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
+      console.error('Auth error:', authError);
+      console.error('User:', user);
       return new Response(JSON.stringify({ error: 'Token inválido' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+    
+    console.log('User authenticated:', user.id);
 
     // Connect to VN Ticket Supabase
     // Keys do VN Ticket já configuradas
@@ -58,6 +79,9 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
+    
+    console.log('Action parameter:', action);
+    console.log('Request method:', req.method);
 
     switch (req.method) {
       case 'GET': {
@@ -99,21 +123,58 @@ Deno.serve(async (req) => {
         // Se action for 'list' ou não houver action, lista eventos
         if (action === 'list' || action === null || action === undefined) {
           // List events via POST
-          console.log('Fetching events from VN Ticket (POST)...');
+          console.log('=== LISTING EVENTS ===');
           console.log('Action:', action);
           console.log('VN Ticket URL:', vnTicketUrl);
+          console.log('VN Ticket Key configured:', vnTicketKey ? 'Yes' : 'No');
           
           try {
+            // Primeiro, testa se consegue acessar a tabela
+            console.log('Attempting to query events table...');
+            
             const { data, error } = await vnTicket
               .from('events')
               .select('*')
               .order('date', { ascending: true });
 
+            console.log('Query result - Error:', error);
+            console.log('Query result - Data length:', data?.length || 0);
+            
             if (error) {
               console.error('Error fetching events:', error);
+              console.error('Error code:', error.code);
+              console.error('Error message:', error.message);
               console.error('Error details:', JSON.stringify(error, null, 2));
+              
+              // Se for erro de tabela não encontrada, tenta sem order
+              if (error.code === 'PGRST116' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+                console.log('Trying without order by...');
+                const { data: dataNoOrder, error: errorNoOrder } = await vnTicket
+                  .from('events')
+                  .select('*');
+                
+                if (errorNoOrder) {
+                  return new Response(JSON.stringify({ 
+                    error: `Tabela 'events' não encontrada no banco VN Ticket. Verifique se a tabela existe.`,
+                    events: []
+                  }), {
+                    status: 500,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                  });
+                }
+                
+                console.log(`Found ${dataNoOrder?.length || 0} events (without order)`);
+                return new Response(JSON.stringify({ 
+                  events: dataNoOrder || [] 
+                }), {
+                  status: 200,
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+              }
+              
               return new Response(JSON.stringify({ 
                 error: `Erro ao buscar eventos: ${error.message || JSON.stringify(error)}`,
+                errorCode: error.code,
                 events: []
               }), {
                 status: 500,
@@ -121,7 +182,10 @@ Deno.serve(async (req) => {
               });
             }
 
-            console.log(`Found ${data?.length || 0} events`);
+            console.log(`✅ Successfully found ${data?.length || 0} events`);
+            if (data && data.length > 0) {
+              console.log('First event sample:', JSON.stringify(data[0], null, 2));
+            }
             
             return new Response(JSON.stringify({ 
               events: data || [] 
@@ -130,7 +194,9 @@ Deno.serve(async (req) => {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
           } catch (dbError: any) {
-            console.error('Database error:', dbError);
+            console.error('Database error (catch):', dbError);
+            console.error('Database error type:', typeof dbError);
+            console.error('Database error message:', dbError?.message);
             return new Response(JSON.stringify({ 
               error: `Erro ao conectar com o banco: ${dbError.message || 'Erro desconhecido'}`,
               events: []
