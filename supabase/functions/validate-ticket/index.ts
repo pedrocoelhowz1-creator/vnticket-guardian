@@ -335,6 +335,44 @@ Deno.serve(async (req) => {
       });
     }
 
+    // VERIFICAR SE O INGRESSO JÁ FOI ESCANEADO (CHECK-IN JÁ REALIZADO)
+    // Busca na tabela checkins por id_compra ou id_ingresso com status 'valid'
+    const { data: existingCheckin, error: checkinError } = await supabase
+      .from('checkins')
+      .select('*')
+      .or(`id_compra.eq.${decodedPayload.id_compra},id_ingresso.eq.${decodedPayload.id_ingresso}`)
+      .eq('status', 'valid')
+      .maybeSingle();
+
+    if (!checkinError && existingCheckin) {
+      console.log('⚠️ Ingresso já foi escaneado anteriormente:', existingCheckin);
+      
+      // Registra tentativa de re-escaneio
+      await supabase.from('checkins').insert({
+        id_compra: decodedPayload.id_compra,
+        id_evento: eventId,
+        id_ingresso: decodedPayload.id_ingresso,
+        buyer_email: decodedPayload.email,
+        validated_by: user.id,
+        status: 'invalid',
+        reason: 'Ingresso já foi bipado anteriormente',
+        qr_payload: qrPayload
+      });
+
+      return new Response(JSON.stringify({
+        status: 'invalid',
+        reason: 'Ingresso já foi bipado',
+        data: {
+          ...decodedPayload,
+          first_scanned_at: existingCheckin.created_at || existingCheckin.validated_at,
+          buyer_name: venda.buyer_name || venda.name
+        }
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // Verifica status do ingresso (se existir o campo)
     const vendaStatus = venda.status || venda.estado || venda.situacao || '';
     const statusLower = vendaStatus.toLowerCase().trim();
