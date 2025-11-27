@@ -110,14 +110,22 @@ const Events = () => {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       
-      const response = await supabase.functions.invoke('manage-events', {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const res = await fetch(`${supabaseUrl}/functions/v1/manage-events`, {
+        method: 'GET',
         headers: {
-          Authorization: `Bearer ${session?.access_token}`
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
         }
       });
 
-      if (response.error) throw response.error;
-      setEvents(response.data.events || []);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Erro ao carregar eventos' }));
+        throw new Error(errorData.error || 'Erro ao carregar eventos');
+      }
+
+      const data = await res.json();
+      setEvents(data.events || []);
     } catch (error: any) {
       console.error('Error loading events:', error);
       toast({
