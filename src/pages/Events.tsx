@@ -128,7 +128,14 @@ const Events = () => {
       }
       
       // Usa POST com action=list
-      const res = await fetch(`${supabaseUrl}/functions/v1/manage-events?action=list`, {
+      console.log('=== INICIANDO CARREGAMENTO DE EVENTOS ===');
+      console.log('Supabase URL:', supabaseUrl);
+      console.log('Session token present:', !!session.access_token);
+      
+      const functionUrl = `${supabaseUrl}/functions/v1/manage-events?action=list`;
+      console.log('Function URL:', functionUrl);
+      
+      const res = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,21 +145,13 @@ const Events = () => {
         body: JSON.stringify({})
       });
 
+      console.log('Response received');
+      console.log('Response status:', res.status);
+      console.log('Response headers:', Object.fromEntries(res.headers.entries()));
+      
       const responseText = await res.text();
-      console.log('Fetch response status:', res.status);
-      console.log('Fetch response text:', responseText);
-
-      if (!res.ok) {
-        let errorData;
-        try {
-          errorData = JSON.parse(responseText);
-        } catch {
-          errorData = { error: responseText || 'Erro ao carregar eventos' };
-        }
-        const errorMessage = errorData.error || errorData.message || `Erro ${res.status}: ${res.statusText}`;
-        console.error('Error response:', errorData);
-        throw new Error(errorMessage);
-      }
+      console.log('Response text length:', responseText.length);
+      console.log('Response text:', responseText);
 
       let data;
       try {
@@ -164,10 +163,27 @@ const Events = () => {
       
       console.log('Events data:', data);
       
-      if (data && data.events) {
-        setEvents(Array.isArray(data.events) ? data.events : []);
+      // Se a resposta contém eventos, usa eles mesmo se houver erro
+      if (data && data.events && Array.isArray(data.events)) {
+        console.log(`✅ Carregando ${data.events.length} eventos`);
+        setEvents(data.events);
+        
+        // Se houver erro mas também eventos, mostra aviso
+        if (!res.ok && data.error) {
+          toast({
+            title: "Aviso",
+            description: data.error,
+            variant: "default"
+          });
+        }
       } else if (Array.isArray(data)) {
+        console.log(`✅ Carregando ${data.length} eventos (formato array direto)`);
         setEvents(data);
+      } else if (!res.ok) {
+        // Só lança erro se não houver eventos na resposta
+        const errorMessage = data.error || data.message || `Erro ${res.status}: ${res.statusText}`;
+        console.error('Error response:', data);
+        throw new Error(errorMessage);
       } else {
         console.warn('Formato de resposta inesperado:', data);
         setEvents([]);
