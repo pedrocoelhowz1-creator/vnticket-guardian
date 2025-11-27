@@ -131,11 +131,50 @@ Deno.serve(async (req) => {
           try {
             // Primeiro, testa se consegue acessar a tabela
             console.log('Attempting to query events table...');
+            console.log('VN Ticket URL:', vnTicketUrl);
+            console.log('VN Ticket Key (first 20 chars):', vnTicketKey.substring(0, 20) + '...');
             
-            const { data, error } = await vnTicket
+            // Testa uma query simples primeiro
+            console.log('Testing simple query...');
+            const { data: testData, error: testError } = await vnTicket
+              .from('events')
+              .select('id')
+              .limit(1);
+            
+            console.log('Test query result:', { data: testData, error: testError });
+            
+            if (testError) {
+              console.error('Test query failed:', testError);
+              // Tenta sem limit
+              const { data: testData2, error: testError2 } = await vnTicket
+                .from('events')
+                .select('id');
+              console.log('Test query 2 result:', { data: testData2, error: testError2 });
+            }
+            
+            // Agora faz a query completa
+            console.log('Executing full query...');
+            let data, error;
+            
+            // Tenta com order by primeiro
+            const queryResult = await vnTicket
               .from('events')
               .select('*')
               .order('date', { ascending: true });
+            
+            data = queryResult.data;
+            error = queryResult.error;
+            
+            // Se der erro com order by, tenta sem
+            if (error && (error.message?.includes('column') || error.code === 'PGRST116')) {
+              console.log('Error with order by, trying without...');
+              const queryResult2 = await vnTicket
+                .from('events')
+                .select('*');
+              
+              data = queryResult2.data;
+              error = queryResult2.error;
+            }
 
             console.log('Query result - Error:', error);
             console.log('Query result - Data length:', data?.length || 0);
@@ -183,13 +222,26 @@ Deno.serve(async (req) => {
             }
 
             console.log(`✅ Successfully found ${data?.length || 0} events`);
-            if (data && data.length > 0) {
+            
+            if (!data || data.length === 0) {
+              console.warn('⚠️ Nenhum evento encontrado no banco de dados');
+              console.log('Isso pode significar que:');
+              console.log('1. Não há eventos cadastrados no banco VN Ticket');
+              console.log('2. A tabela events está vazia');
+              console.log('3. Há um problema de permissões na tabela');
+            } else {
               console.log('First event sample:', JSON.stringify(data[0], null, 2));
+              console.log('All events IDs:', data.map((e: any) => e.id));
             }
             
-            return new Response(JSON.stringify({ 
-              events: data || [] 
-            }), {
+            const responseData = { 
+              events: data || [],
+              count: data?.length || 0
+            };
+            
+            console.log('Returning response with', responseData.count, 'events');
+            
+            return new Response(JSON.stringify(responseData), {
               status: 200,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
