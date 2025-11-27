@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { QrCode, LogOut, History, TrendingUp, CheckCircle, XCircle, Calendar } from "lucide-react";
+import { AdminRoute } from "@/components/AdminRoute";
 import type { Session } from "@supabase/supabase-js";
 
 interface CheckinStats {
@@ -22,24 +23,50 @@ const Dashboard = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (!session) {
+    const checkAdmin = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      setSession(currentSession);
+      
+      if (!currentSession?.user) {
         navigate("/auth");
-      } else {
-        loadStats();
+        return;
       }
-    });
+
+      // Verificar se é admin
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', currentSession.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (roleError || !roleData) {
+        toast({
+          title: "Acesso negado",
+          description: "Apenas administradores podem acessar este sistema",
+          variant: "destructive",
+        });
+        await supabase.auth.signOut();
+        navigate("/auth");
+        return;
+      }
+
+      loadStats();
+    };
+
+    checkAdmin();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (!session) {
         navigate("/auth");
+      } else {
+        checkAdmin();
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const loadStats = async () => {
     try {
