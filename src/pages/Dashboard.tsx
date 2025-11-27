@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode, LogOut, History, TrendingUp, CheckCircle, XCircle } from "lucide-react";
+import { QrCode, LogOut, History, TrendingUp, CheckCircle, XCircle, Calendar } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 
 interface CheckinStats {
@@ -162,7 +162,7 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="shadow-medium hover:shadow-strong transition-shadow cursor-pointer" onClick={() => navigate("/scanner")}>
             <CardHeader>
               <div className="flex items-center space-x-2">
@@ -176,6 +176,23 @@ const Dashboard = () => {
             <CardContent>
               <Button className="w-full" size="lg">
                 Abrir Scanner
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-medium hover:shadow-strong transition-shadow cursor-pointer" onClick={() => navigate("/events")}>
+            <CardHeader>
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-6 w-6 text-primary" />
+                <CardTitle>Eventos</CardTitle>
+              </div>
+              <CardDescription>
+                Gerencie todos os eventos do sistema
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" size="lg">
+                Gerenciar Eventos
               </Button>
             </CardContent>
           </Card>
