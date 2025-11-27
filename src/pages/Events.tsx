@@ -166,7 +166,17 @@ const Events = () => {
       // Se a resposta contém eventos, usa eles mesmo se houver erro
       if (data && data.events && Array.isArray(data.events)) {
         console.log(`✅ Carregando ${data.events.length} eventos`);
+        console.log('Eventos recebidos:', data.events);
         setEvents(data.events);
+        
+        if (data.events.length === 0) {
+          console.warn('⚠️ Array de eventos está vazio');
+          toast({
+            title: "Nenhum evento encontrado",
+            description: "Não há eventos cadastrados no sistema",
+            variant: "default"
+          });
+        }
         
         // Se houver erro mas também eventos, mostra aviso
         if (!res.ok && data.error) {
@@ -178,7 +188,17 @@ const Events = () => {
         }
       } else if (Array.isArray(data)) {
         console.log(`✅ Carregando ${data.length} eventos (formato array direto)`);
+        console.log('Eventos recebidos:', data);
         setEvents(data);
+        
+        if (data.length === 0) {
+          console.warn('⚠️ Array de eventos está vazio');
+          toast({
+            title: "Nenhum evento encontrado",
+            description: "Não há eventos cadastrados no sistema",
+            variant: "default"
+          });
+        }
       } else if (!res.ok) {
         // Só lança erro se não houver eventos na resposta
         const errorMessage = data.error || data.message || `Erro ${res.status}: ${res.statusText}`;
@@ -186,7 +206,14 @@ const Events = () => {
         throw new Error(errorMessage);
       } else {
         console.warn('Formato de resposta inesperado:', data);
+        console.warn('Tipo de data:', typeof data);
+        console.warn('Keys de data:', data ? Object.keys(data) : 'data is null/undefined');
         setEvents([]);
+        toast({
+          title: "Formato de resposta inesperado",
+          description: "A resposta do servidor não está no formato esperado",
+          variant: "destructive"
+        });
       }
     } catch (error: any) {
       console.error('Error loading events:', error);
