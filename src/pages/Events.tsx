@@ -103,6 +103,8 @@ const Events = () => {
       setSession(session);
       if (!session) {
         navigate("/auth");
+      } else {
+        loadEvents();
       }
     });
 
@@ -120,6 +122,10 @@ const Events = () => {
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      if (!supabaseUrl) {
+        throw new Error('URL do Supabase não configurada');
+      }
       
       // Usa POST com action=list
       const res = await fetch(`${supabaseUrl}/functions/v1/manage-events?action=list`, {
@@ -143,14 +149,23 @@ const Events = () => {
         } catch {
           errorData = { error: responseText || 'Erro ao carregar eventos' };
         }
-        throw new Error(errorData.error || `Erro ${res.status}: ${res.statusText}`);
+        const errorMessage = errorData.error || errorData.message || `Erro ${res.status}: ${res.statusText}`;
+        console.error('Error response:', errorData);
+        throw new Error(errorMessage);
       }
 
-      const data = JSON.parse(responseText);
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError);
+        throw new Error('Resposta inválida do servidor');
+      }
+      
       console.log('Events data:', data);
       
       if (data && data.events) {
-        setEvents(data.events);
+        setEvents(Array.isArray(data.events) ? data.events : []);
       } else if (Array.isArray(data)) {
         setEvents(data);
       } else {
