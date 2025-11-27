@@ -129,12 +129,27 @@ Deno.serve(async (req) => {
         
         // Se action for 'list' ou não houver action, lista eventos
         // Action já foi normalizada acima
+        console.log('=== POST REQUEST ===');
         console.log('Checking action in POST:', action);
         console.log('Action type:', typeof action);
+        console.log('Action value:', JSON.stringify(action));
         console.log('Action === "list":', action === 'list');
+        console.log('Action is null:', action === null);
+        console.log('Action is undefined:', action === undefined);
+        console.log('Action is empty string:', action === '');
         console.log('Action is falsy:', !action);
+        console.log('All URL params:', Object.fromEntries(url.searchParams.entries()));
         
-        if (action === 'list' || !action) {
+        // Verifica de várias formas para garantir que funciona
+        const isListAction = action === 'list' || 
+                            action === null || 
+                            action === undefined || 
+                            action === '' ||
+                            String(action).toLowerCase().trim() === 'list';
+        
+        console.log('isListAction:', isListAction);
+        
+        if (isListAction) {
           // List events via POST
           console.log('=== LISTING EVENTS ===');
           console.log('Action:', action);
@@ -391,12 +406,57 @@ Deno.serve(async (req) => {
           });
         }
 
-        console.error('Ação inválida recebida:', action);
+        console.error('=== AÇÃO INVÁLIDA ===');
+        console.error('Action recebida:', action);
         console.error('Tipo da action:', typeof action);
+        console.error('Action === "list":', action === 'list');
+        console.error('Action é null/undefined:', action === null || action === undefined);
+        console.error('URL completa:', req.url);
+        console.error('Search params:', url.searchParams.toString());
         console.error('Body recebido:', body);
+        console.error('Todas as search params:', Object.fromEntries(url.searchParams.entries()));
+        
+        // Última tentativa: se action não foi reconhecida mas é POST, tenta listar mesmo assim
+        if (req.method === 'POST' && !action) {
+          console.log('Action vazia em POST, tratando como list...');
+          // Chama a lógica de listagem diretamente
+          try {
+            const { data, error } = await vnTicket
+              .from('events')
+              .select('*');
+            
+            if (error) {
+              return new Response(JSON.stringify({ 
+                error: `Erro ao buscar eventos: ${error.message}`,
+                events: []
+              }), {
+                status: 500,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+            
+            return new Response(JSON.stringify({ 
+              events: data || [] 
+            }), {
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          } catch (e: any) {
+            return new Response(JSON.stringify({ 
+              error: `Erro: ${e.message}`,
+              events: []
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+        }
+        
         return new Response(JSON.stringify({ 
           error: `Ação inválida: "${action}". Ações válidas: list, create, update, delete`,
           receivedAction: action,
+          url: req.url,
+          searchParams: Object.fromEntries(url.searchParams.entries()),
           events: []
         }), {
           status: 400,
