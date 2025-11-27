@@ -110,22 +110,74 @@ const Events = () => {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       
+      if (!session?.access_token) {
+        throw new Error('Sessão não encontrada. Faça login novamente.');
+      }
+
+      // Tenta usar o método do supabase client primeiro
+      const { data: invokeData, error: invokeError } = await supabase.functions.invoke('manage-events', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (invokeError) {
+        console.error('Invoke error:', invokeError);
+        throw invokeError;
+      }
+
+      console.log('Invoke data:', invokeData);
+
+      // Se funcionou com invoke, usa os dados
+      if (invokeData) {
+        if (invokeData.events) {
+          setEvents(invokeData.events);
+          return;
+        } else if (Array.isArray(invokeData)) {
+          setEvents(invokeData);
+          return;
+        }
+      }
+
+      // Fallback: usa fetch diretamente
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
       const res = await fetch(`${supabaseUrl}/functions/v1/manage-events`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabaseKey || ''
         }
       });
 
+      const responseText = await res.text();
+      console.log('Fetch response status:', res.status);
+      console.log('Fetch response text:', responseText);
+
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Erro ao carregar eventos' }));
-        throw new Error(errorData.error || 'Erro ao carregar eventos');
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { error: responseText || 'Erro ao carregar eventos' };
+        }
+        throw new Error(errorData.error || `Erro ${res.status}: ${res.statusText}`);
       }
 
-      const data = await res.json();
-      setEvents(data.events || []);
+      const data = JSON.parse(responseText);
+      console.log('Fetch events data:', data);
+      
+      if (data && data.events) {
+        setEvents(data.events);
+      } else if (Array.isArray(data)) {
+        setEvents(data);
+      } else {
+        console.warn('Formato de resposta inesperado:', data);
+        setEvents([]);
+      }
     } catch (error: any) {
       console.error('Error loading events:', error);
       toast({
@@ -133,6 +185,7 @@ const Events = () => {
         description: error.message || "Tente novamente mais tarde",
         variant: "destructive"
       });
+      setEvents([]);
     } finally {
       setLoading(false);
     }
