@@ -430,11 +430,15 @@ const Events = () => {
       // Check URL for action parameter workaround
       const url = new URL(`${window.location.origin}/manage-events?action=${action}`);
 
-      const res = await fetch(`https://ccmbbvgdeoscedsxklfw.supabase.co/functions/v1/manage-events?action=${action}`, {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const res = await fetch(`${supabaseUrl}/functions/v1/manage-events?action=${action}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': supabaseKey || ''
         },
         body: JSON.stringify(body)
       });
@@ -466,11 +470,15 @@ const Events = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
-      const res = await fetch(`https://ccmbbvgdeoscedsxklfw.supabase.co/functions/v1/manage-events?action=delete`, {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const res = await fetch(`${supabaseUrl}/functions/v1/manage-events?action=delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': supabaseKey || ''
         },
         body: JSON.stringify({ id: event.id })
       });
