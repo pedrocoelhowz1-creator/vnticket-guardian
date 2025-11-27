@@ -90,26 +90,50 @@ const Events = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (!session) {
+    const checkAdmin = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      setSession(currentSession);
+      
+      if (!currentSession?.user) {
         navigate("/auth");
-      } else {
-        loadEvents();
+        return;
       }
-    });
+
+      // Verificar se é admin
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', currentSession.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (roleError || !roleData) {
+        toast({
+          title: "Acesso negado",
+          description: "Apenas administradores podem acessar este sistema",
+          variant: "destructive",
+        });
+        await supabase.auth.signOut();
+        navigate("/auth");
+        return;
+      }
+
+      loadEvents();
+    };
+
+    checkAdmin();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (!session) {
         navigate("/auth");
       } else {
-        loadEvents();
+        checkAdmin();
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const loadEvents = async () => {
     try {
@@ -120,12 +144,9 @@ const Events = () => {
         throw new Error('Sessão não encontrada. Faça login novamente.');
       }
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      
-      if (!supabaseUrl) {
-        throw new Error('URL do Supabase não configurada');
-      }
+      // URL correta do Supabase (Guardian = VN Ticket)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co';
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_9MkvN2POLK3J1Qh4GvfIHw_22oBYzGw';
       
       // Usa POST com action=list
       console.log('=== INICIANDO CARREGAMENTO DE EVENTOS ===');
@@ -430,8 +451,9 @@ const Events = () => {
       // Check URL for action parameter workaround
       const url = new URL(`${window.location.origin}/manage-events?action=${action}`);
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      // URL correta do Supabase (Guardian = VN Ticket)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co';
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_9MkvN2POLK3J1Qh4GvfIHw_22oBYzGw';
       
       const res = await fetch(`${supabaseUrl}/functions/v1/manage-events?action=${action}`, {
         method: 'POST',
@@ -470,8 +492,9 @@ const Events = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      // URL correta do Supabase (Guardian = VN Ticket)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co';
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_9MkvN2POLK3J1Qh4GvfIHw_22oBYzGw';
       
       const res = await fetch(`${supabaseUrl}/functions/v1/manage-events?action=delete`, {
         method: 'POST',
