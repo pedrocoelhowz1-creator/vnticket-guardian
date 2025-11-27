@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     
     console.log('Supabase URL configured:', !!supabaseUrl);
+    console.log('Supabase URL value:', supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'NOT SET');
     console.log('Supabase Key configured:', !!supabaseKey);
     
     if (!supabaseUrl || !supabaseKey) {
@@ -64,6 +65,27 @@ Deno.serve(async (req) => {
     
     console.log('User authenticated:', user.id);
 
+    // Verificar se o usuário tem role de admin
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (roleError || !roleData) {
+      console.error('User is not admin:', user.id);
+      return new Response(JSON.stringify({ 
+        error: 'Acesso negado. Apenas administradores podem acessar este sistema.',
+        events: []
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('User is admin, proceeding...');
+
     // Usa o mesmo Supabase (Guardian e VN Ticket são o mesmo projeto)
     // Não precisa conectar a outro banco, usa o mesmo cliente
     const vnTicket = supabase;
@@ -86,8 +108,8 @@ Deno.serve(async (req) => {
     switch (req.method) {
       case 'GET': {
         // List events
-        console.log('Fetching events from VN Ticket...');
-        console.log('VN Ticket URL:', vnTicketUrl ? 'configured' : 'missing');
+        console.log('Fetching events from Supabase...');
+        console.log('Using same Supabase client (Guardian = VN Ticket)');
         
         const { data, error } = await vnTicket
           .from('events')
@@ -137,39 +159,27 @@ Deno.serve(async (req) => {
         console.log('All URL params:', Object.fromEntries(url.searchParams.entries()));
         console.log('URL search:', url.search);
         
-        // Se action for 'list' ou não houver action, lista eventos
-        // Verifica de várias formas para garantir que funciona
-        const isListAction = normalizedAction === 'list' || 
-                            normalizedAction === null || 
-                            normalizedAction === undefined || 
-                            normalizedAction === '' ||
-                            action === 'list' ||
-                            String(action).toLowerCase().trim() === 'list' ||
-                            !action ||
-                            !normalizedAction;
+        // Define ações explícitas
+        const explicitActions = ['create', 'update', 'delete'];
+        const isExplicitAction = normalizedAction && explicitActions.includes(normalizedAction);
         
-        console.log('isListAction:', isListAction);
-        console.log('normalizedAction === "list":', normalizedAction === 'list');
-        console.log('normalizedAction is null/undefined/empty:', !normalizedAction);
+        console.log('isExplicitAction:', isExplicitAction);
+        console.log('normalizedAction:', normalizedAction);
         
-        // SEMPRE tenta listar se não for create, update ou delete explícito
-        const isExplicitAction = normalizedAction === 'create' || normalizedAction === 'update' || normalizedAction === 'delete';
-        
-        if (!isExplicitAction || isListAction) {
+        // Se NÃO for uma ação explícita, assume que é LIST
+        // Isso inclui: 'list', null, undefined, '', ou qualquer outro valor
+        if (!isExplicitAction) {
           // List events via POST
           console.log('=== LISTING EVENTS (POST) ===');
           console.log('Action (original):', action);
           console.log('Action (normalized):', normalizedAction);
           console.log('isExplicitAction:', isExplicitAction);
-          console.log('isListAction:', isListAction);
-          console.log('VN Ticket URL:', vnTicketUrl);
-          console.log('VN Ticket Key configured:', vnTicketKey ? 'Yes' : 'No');
+          console.log('Using same Supabase client (Guardian = VN Ticket)');
           
           try {
             // Primeiro, testa se consegue acessar a tabela
             console.log('Attempting to query events table...');
-            console.log('VN Ticket URL:', vnTicketUrl);
-            console.log('VN Ticket Key (first 20 chars):', vnTicketKey.substring(0, 20) + '...');
+            console.log('Supabase URL:', supabaseUrl);
             
             // Testa uma query simples primeiro
             console.log('Testing simple query...');
@@ -483,11 +493,11 @@ Deno.serve(async (req) => {
     console.error('Error in manage-events function:', error);
     
     let message = 'Erro interno do servidor';
-    let details = undefined;
+    let details: string | undefined = undefined;
     
     if (error instanceof Error) {
       message = error.message || 'Erro desconhecido';
-      details = error.stack;
+      details = error.stack || undefined;
     } else if (typeof error === 'object' && error !== null) {
       try {
         const errorObj = error as any;
