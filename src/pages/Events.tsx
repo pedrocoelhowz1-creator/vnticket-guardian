@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Calendar, MapPin, DollarSign, Ticket, ArrowLeft, Image, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar, MapPin, DollarSign, Ticket, ArrowLeft, Image, Search, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Session } from "@supabase/supabase-js";
@@ -82,6 +82,10 @@ const Events = () => {
   const [formData, setFormData] = useState<EventFormData>(initialFormData);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [useImageUpload, setUseImageUpload] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -114,43 +118,18 @@ const Events = () => {
         throw new Error('Sessão não encontrada. Faça login novamente.');
       }
 
-      // Tenta usar o método do supabase client primeiro
-      const { data: invokeData, error: invokeError } = await supabase.functions.invoke('manage-events', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-
-      if (invokeError) {
-        console.error('Invoke error:', invokeError);
-        throw invokeError;
-      }
-
-      console.log('Invoke data:', invokeData);
-
-      // Se funcionou com invoke, usa os dados
-      if (invokeData) {
-        if (invokeData.events) {
-          setEvents(invokeData.events);
-          return;
-        } else if (Array.isArray(invokeData)) {
-          setEvents(invokeData);
-          return;
-        }
-      }
-
-      // Fallback: usa fetch diretamente
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
-      const res = await fetch(`${supabaseUrl}/functions/v1/manage-events`, {
-        method: 'GET',
+      // Usa POST com action=list
+      const res = await fetch(`${supabaseUrl}/functions/v1/manage-events?action=list`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': supabaseKey || ''
-        }
+        },
+        body: JSON.stringify({})
       });
 
       const responseText = await res.text();
@@ -168,7 +147,7 @@ const Events = () => {
       }
 
       const data = JSON.parse(responseText);
-      console.log('Fetch events data:', data);
+      console.log('Events data:', data);
       
       if (data && data.events) {
         setEvents(data.events);
@@ -204,9 +183,15 @@ const Events = () => {
         image_url: event.image_url || "",
         category: event.category || ""
       });
+      setImagePreview(event.image_url || null);
+      setUseImageUpload(false);
+      setImageFile(null);
     } else {
       setEditingEvent(null);
       setFormData(initialFormData);
+      setImagePreview(null);
+      setImageFile(null);
+      setUseImageUpload(false);
     }
     setIsDialogOpen(true);
   };
@@ -215,6 +200,123 @@ const Events = () => {
     setIsDialogOpen(false);
     setEditingEvent(null);
     setFormData(initialFormData);
+    setImageFile(null);
+    setImagePreview(null);
+    setUseImageUpload(false);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar tipo de arquivo
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Arquivo inválido",
+          description: "Por favor, selecione uma imagem",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validar tamanho (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Arquivo muito grande",
+          description: "A imagem deve ter no máximo 5MB",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      setUseImageUpload(true);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setFormData({ ...formData, image_url: "" });
+    setUseImageUpload(false);
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imageFile || !session) return null;
+
+    try {
+      setUploadingImage(true);
+      
+      // Criar nome único para o arquivo
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `event-images/${fileName}`;
+
+      // Fazer upload para o Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('events')
+        .upload(filePath, imageFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        // Se o bucket não existir, criar
+        if (error.message.includes('not found') || error.message.includes('Bucket')) {
+          toast({
+            title: "Bucket não encontrado",
+            description: "Criando bucket 'events' no Storage...",
+          });
+          
+          // Tentar criar o bucket (requer permissões admin)
+          const { error: createError } = await supabase.storage.createBucket('events', {
+            public: true,
+            fileSizeLimit: 5242880, // 5MB
+            allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+          });
+
+          if (createError) {
+            console.error('Erro ao criar bucket:', createError);
+            throw new Error('Não foi possível criar o bucket. Configure o bucket "events" no Supabase Storage manualmente.');
+          }
+
+          // Tentar upload novamente
+          const { data: retryData, error: retryError } = await supabase.storage
+            .from('events')
+            .upload(filePath, imageFile);
+
+          if (retryError) throw retryError;
+          
+          const { data: urlData } = supabase.storage
+            .from('events')
+            .getPublicUrl(filePath);
+          
+          return urlData.publicUrl;
+        }
+        throw error;
+      }
+
+      // Obter URL pública da imagem
+      const { data: urlData } = supabase.storage
+        .from('events')
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (error: any) {
+      console.error('Erro ao fazer upload:', error);
+      toast({
+        title: "Erro ao fazer upload",
+        description: error.message || "Não foi possível fazer upload da imagem",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -233,6 +335,18 @@ const Events = () => {
       setSaving(true);
       const { data: { session } } = await supabase.auth.getSession();
 
+      // Fazer upload da imagem se houver arquivo selecionado
+      let imageUrl = formData.image_url;
+      if (useImageUpload && imageFile) {
+        const uploadedUrl = await uploadImage();
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        } else {
+          // Se o upload falhar, não salvar o evento
+          return;
+        }
+      }
+
       const eventData = {
         title: formData.title,
         description: formData.description || null,
@@ -240,7 +354,7 @@ const Events = () => {
         location: formData.location,
         price: parseFloat(formData.price),
         available_tickets: parseInt(formData.available_tickets),
-        image_url: formData.image_url || null,
+        image_url: imageUrl || null,
         category: formData.category || null
       };
 
@@ -450,24 +564,92 @@ const Events = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="image_url">URL da Imagem</Label>
-                  <Input
-                    id="image_url"
-                    type="url"
-                    placeholder="https://exemplo.com/imagem.jpg"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  />
-                  {formData.image_url && (
-                    <div className="mt-2 rounded-lg overflow-hidden border">
-                      <img
-                        src={formData.image_url}
-                        alt="Preview"
-                        className="w-full h-40 object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
+                  <Label htmlFor="image">Imagem do Evento</Label>
+                  
+                  {/* Toggle entre Upload e URL */}
+                  <div className="flex gap-2 mb-2">
+                    <Button
+                      type="button"
+                      variant={useImageUpload ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setUseImageUpload(true);
+                        setFormData({ ...formData, image_url: "" });
+                      }}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      Fazer Upload
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={!useImageUpload ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setUseImageUpload(false);
+                        setImageFile(null);
+                        setImagePreview(null);
+                      }}
+                    >
+                      <Image className="mr-2 h-4 w-4" />
+                      Usar URL
+                    </Button>
+                  </div>
+
+                  {useImageUpload ? (
+                    <div className="space-y-2">
+                      <Input
+                        id="image_file"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        disabled={uploadingImage}
+                      />
+                      {imagePreview && (
+                        <div className="relative mt-2 rounded-lg overflow-hidden border">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-40 object-cover"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-2 right-2"
+                            onClick={handleRemoveImage}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      {uploadingImage && (
+                        <p className="text-sm text-muted-foreground">Fazendo upload...</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Input
+                        id="image_url"
+                        type="url"
+                        placeholder="https://exemplo.com/imagem.jpg"
+                        value={formData.image_url}
+                        onChange={(e) => {
+                          setFormData({ ...formData, image_url: e.target.value });
+                          setImagePreview(e.target.value || null);
                         }}
                       />
+                      {formData.image_url && (
+                        <div className="mt-2 rounded-lg overflow-hidden border">
+                          <img
+                            src={formData.image_url}
+                            alt="Preview"
+                            className="w-full h-40 object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -488,8 +670,8 @@ const Events = () => {
                   <Button type="button" variant="outline" onClick={handleCloseDialog}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={saving}>
-                    {saving ? "Salvando..." : editingEvent ? "Atualizar" : "Criar Evento"}
+                  <Button type="submit" disabled={saving || uploadingImage}>
+                    {uploadingImage ? "Fazendo upload..." : saving ? "Salvando..." : editingEvent ? "Atualizar" : "Criar Evento"}
                   </Button>
                 </DialogFooter>
               </form>
