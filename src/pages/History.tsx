@@ -24,19 +24,40 @@ const History = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (!session) {
+    const checkAdmin = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      setSession(currentSession);
+      
+      if (!currentSession?.user) {
         navigate("/auth");
-      } else {
-        loadCheckins();
+        return;
       }
-    });
+
+      // Verificar se é admin
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', currentSession.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (roleError || !roleData) {
+        await supabase.auth.signOut();
+        navigate("/auth");
+        return;
+      }
+
+      loadCheckins();
+    };
+
+    checkAdmin();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (!session) {
         navigate("/auth");
+      } else {
+        checkAdmin();
       }
     });
 
