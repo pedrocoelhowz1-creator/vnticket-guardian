@@ -78,9 +78,16 @@ Deno.serve(async (req) => {
     console.log('VN Ticket URL:', vnTicketUrl);
 
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    let action = url.searchParams.get('action');
     
-    console.log('Action parameter:', action);
+    // Normaliza a action (remove espaços, converte para lowercase)
+    if (action) {
+      action = action.trim().toLowerCase();
+    }
+    
+    console.log('URL completa:', req.url);
+    console.log('Action parameter (raw):', url.searchParams.get('action'));
+    console.log('Action parameter (normalized):', action);
     console.log('Request method:', req.method);
 
     switch (req.method) {
@@ -121,7 +128,13 @@ Deno.serve(async (req) => {
         }
         
         // Se action for 'list' ou não houver action, lista eventos
-        if (action === 'list' || action === null || action === undefined) {
+        // Action já foi normalizada acima
+        console.log('Checking action in POST:', action);
+        console.log('Action type:', typeof action);
+        console.log('Action === "list":', action === 'list');
+        console.log('Action is falsy:', !action);
+        
+        if (action === 'list' || !action) {
           // List events via POST
           console.log('=== LISTING EVENTS ===');
           console.log('Action:', action);
@@ -156,24 +169,35 @@ Deno.serve(async (req) => {
             console.log('Executing full query...');
             let data, error;
             
-            // Tenta com order by primeiro
-            const queryResult = await vnTicket
-              .from('events')
-              .select('*')
-              .order('date', { ascending: true });
-            
-            data = queryResult.data;
-            error = queryResult.error;
-            
-            // Se der erro com order by, tenta sem
-            if (error && (error.message?.includes('column') || error.code === 'PGRST116')) {
-              console.log('Error with order by, trying without...');
+            // Tenta com order by primeiro, mas trata campos nulos
+            try {
+              const queryResult = await vnTicket
+                .from('events')
+                .select('*')
+                .order('date', { ascending: true }, { nullsFirst: false });
+              
+              data = queryResult.data;
+              error = queryResult.error;
+            } catch (orderError: any) {
+              console.log('Error with order by, trying without...', orderError);
+              // Se der erro com order by, tenta sem
               const queryResult2 = await vnTicket
                 .from('events')
                 .select('*');
               
               data = queryResult2.data;
               error = queryResult2.error;
+            }
+            
+            // Se ainda der erro, tenta sem order by
+            if (error && (error.message?.includes('column') || error.code === 'PGRST116' || error.message?.includes('null'))) {
+              console.log('Error with date column, trying without order...');
+              const queryResult3 = await vnTicket
+                .from('events')
+                .select('*');
+              
+              data = queryResult3.data;
+              error = queryResult3.error;
             }
 
             console.log('Query result - Error:', error);
@@ -230,8 +254,35 @@ Deno.serve(async (req) => {
               console.log('2. A tabela events está vazia');
               console.log('3. Há um problema de permissões na tabela');
             } else {
-              console.log('First event sample:', JSON.stringify(data[0], null, 2));
-              console.log('All events IDs:', data.map((e: any) => e.id));
+              // Limpa os dados para garantir que não há problemas com campos nulos
+              const cleanedData = data.map((event: any) => ({
+                id: event.id || null,
+                title: event.title || '',
+                description: event.description || null,
+                date: event.date || null,
+                location: event.location || '',
+                price: event.price || 0,
+                available_tickets: event.available_tickets || 0,
+                image_url: event.image_url || null,
+                category: event.category || null,
+                created_at: event.created_at || null,
+                updated_at: event.updated_at || null
+              }));
+              
+              console.log('First event sample:', JSON.stringify(cleanedData[0], null, 2));
+              console.log('All events IDs:', cleanedData.map((e: any) => e.id));
+              
+              const responseData = { 
+                events: cleanedData,
+                count: cleanedData.length
+              };
+              
+              console.log('Returning response with', responseData.count, 'events');
+              
+              return new Response(JSON.stringify(responseData), {
+                status: 200,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
             }
             
             const responseData = { 
@@ -288,18 +339,36 @@ Deno.serve(async (req) => {
         if (action === 'update') {
           const { id, ...updates } = body;
           
+          // Limpa campos vazios e converte para null quando apropriado
+          const cleanedUpdates: any = {
+            updated_at: new Date().toISOString()
+          };
+          
+          if (updates.title !== undefined) cleanedUpdates.title = updates.title || '';
+          if (updates.description !== undefined) cleanedUpdates.description = updates.description || null;
+          if (updates.date !== undefined) cleanedUpdates.date = updates.date || null;
+          if (updates.location !== undefined) cleanedUpdates.location = updates.location || '';
+          if (updates.price !== undefined) cleanedUpdates.price = updates.price || 0;
+          if (updates.available_tickets !== undefined) cleanedUpdates.available_tickets = updates.available_tickets || 0;
+          if (updates.image_url !== undefined) cleanedUpdates.image_url = updates.image_url || null;
+          if (updates.category !== undefined) cleanedUpdates.category = updates.category || null;
+          
+          console.log('Updating event:', id);
+          console.log('Updates:', cleanedUpdates);
+          
           const { data, error } = await vnTicket
             .from('events')
-            .update({
-              ...updates,
-              updated_at: new Date().toISOString()
-            })
+            .update(cleanedUpdates)
             .eq('id', id)
             .select()
             .single();
 
-          if (error) throw error;
+          if (error) {
+            console.error('Update error:', error);
+            throw error;
+          }
 
+          console.log('Event updated successfully:', data?.id);
           return new Response(JSON.stringify({ event: data }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -322,7 +391,14 @@ Deno.serve(async (req) => {
           });
         }
 
-        return new Response(JSON.stringify({ error: 'Ação inválida' }), {
+        console.error('Ação inválida recebida:', action);
+        console.error('Tipo da action:', typeof action);
+        console.error('Body recebido:', body);
+        return new Response(JSON.stringify({ 
+          error: `Ação inválida: "${action}". Ações válidas: list, create, update, delete`,
+          receivedAction: action,
+          events: []
+        }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
