@@ -34,14 +34,13 @@ const History = () => {
         return;
       }
 
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', currentSession.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
+      const { checkIsAdmin } = await import('@/lib/adminCheck');
+      const isAdmin = await checkIsAdmin(
+        currentSession.user.id,
+        currentSession.user.email || ''
+      );
 
-      if (roleError || !roleData) {
+      if (!isAdmin) {
         await supabase.auth.signOut();
         navigate("/auth");
         return;
