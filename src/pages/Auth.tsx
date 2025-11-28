@@ -98,6 +98,8 @@ const Auth = () => {
         } else {
           // Fallback: buscar diretamente pelo user_id
           console.log('RPC não disponível, usando query direta...');
+          console.log('⚠️ ATENÇÃO: Se o ID estiver errado, a função RPC precisa ser criada!');
+          
           const { data: roleData, error: roleError } = await supabase
             .from('user_roles')
             .select('role')
