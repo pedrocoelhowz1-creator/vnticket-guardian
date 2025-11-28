@@ -82,45 +82,63 @@ const Auth = () => {
           });
         }
       } else if (authData.user) {
-        // Verificar se o usuário é admin lendo diretamente da tabela
+        // Verificar se o usuário é admin
         console.log('=== VERIFICANDO ADMIN ===');
         console.log('User ID:', authData.user.id);
         console.log('User Email:', authData.user.email);
         
-        // Primeiro, tentar buscar sem filtro de role para ver se consegue ler a tabela
-        console.log('Tentando ler tabela user_roles...');
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', authData.user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
-
-        console.log('=== RESULTADO DA QUERY ===');
-        console.log('roleData:', roleData);
-        console.log('roleError:', roleError);
-        console.log('user_id usado:', authData.user.id);
+        // Tentar primeiro com a função RPC (se existir)
+        let isAdmin = false;
+        const { data: rpcResult, error: rpcError } = await supabase
+          .rpc('check_admin_by_email', { user_email: authData.user.email });
         
-        if (roleError) {
-          console.log('Código do erro:', roleError.code);
-          console.log('Mensagem do erro:', roleError.message);
-        }
+        if (!rpcError && rpcResult !== null) {
+          console.log('Resultado RPC:', rpcResult);
+          isAdmin = rpcResult;
+        } else {
+          // Fallback: buscar diretamente pelo user_id
+          console.log('RPC não disponível, usando query direta...');
+          const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', authData.user.id)
+            .eq('role', 'admin')
+            .maybeSingle();
 
-        if (roleError) {
-          console.error('Error checking admin role:', roleError);
-          console.error('Error details:', {
-            message: roleError.message,
-            details: roleError.details,
-            hint: roleError.hint,
-            code: roleError.code
-          });
-          await supabase.auth.signOut();
-          toast({
-            title: "Erro ao verificar permissões",
-            description: roleError.message || "Não foi possível verificar suas permissões. Entre em contato com o administrador.",
-            variant: "destructive",
-          });
-        } else if (!roleData) {
+          console.log('=== RESULTADO DA QUERY ===');
+          console.log('roleData:', roleData);
+          console.log('roleError:', roleError);
+          console.log('user_id usado:', authData.user.id);
+          
+          if (roleError) {
+            console.log('Código do erro:', roleError.code);
+            console.log('Mensagem do erro:', roleError.message);
+          }
+          
+          isAdmin = !!roleData;
+          
+          if (roleError) {
+            console.error('Error checking admin role:', roleError);
+            console.error('Error details:', {
+              message: roleError.message,
+              details: roleError.details,
+              hint: roleError.hint,
+              code: roleError.code
+            });
+            await supabase.auth.signOut();
+            toast({
+              title: "Erro ao verificar permissões",
+              description: roleError.message || "Não foi possível verificar suas permissões. Entre em contato com o administrador.",
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
+        }
+        
+        console.log('isAdmin final:', isAdmin);
+        
+        if (!isAdmin) {
           console.warn('Usuário não encontrado na tabela user_roles ou não é admin');
           console.log('Tentando buscar todos os registros do usuário...');
           
