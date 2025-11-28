@@ -877,18 +877,17 @@ const Events = () => {
                     </div>
                   </div>
 
-                  {event.description && (
-                    <CardDescription className="mt-3 text-xs">
-                      {event.description}
-                      <br />
-                      <span className="text-muted-foreground/70 font-mono">UUID: {event.id}</span>
-                    </CardDescription>
-                  )}
-                  {!event.description && (
-                    <CardDescription className="mt-3 text-xs">
-                      <span className="text-muted-foreground/70 font-mono">UUID: {event.id}</span>
-                    </CardDescription>
-                  )}
+                  <div className="mt-3 pt-3 border-t">
+                    {event.description ? (
+                      <CardDescription className="text-xs mb-2">
+                        {event.description}
+                      </CardDescription>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-semibold">UUID:</span>{" "}
+                      <span className="font-mono text-[10px] break-all">{event.id}</span>
+                    </p>
+                  </div>
 
                   <div className="flex gap-2 mt-4">
                     <Button
