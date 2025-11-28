@@ -41,11 +41,15 @@ const Auth = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
+    console.log('=== INÍCIO DO LOGIN ===');
+    console.log('Email:', email);
 
     try {
       const validation = authSchema.safeParse({ email, password });
       
       if (!validation.success) {
+        console.log('Erro de validação:', validation.error);
         toast({
           title: "Erro de validação",
           description: validation.error.errors[0].message,
@@ -55,10 +59,13 @@ const Auth = () => {
         return;
       }
 
+      console.log('Tentando fazer login...');
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
+      console.log('Resultado do login:', { hasUser: !!authData?.user, error });
 
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
@@ -76,8 +83,12 @@ const Auth = () => {
         }
       } else if (authData.user) {
         // Verificar se o usuário é admin lendo diretamente da tabela
-        console.log('Verificando admin para user:', authData.user.id, authData.user.email);
+        console.log('=== VERIFICANDO ADMIN ===');
+        console.log('User ID:', authData.user.id);
+        console.log('User Email:', authData.user.email);
         
+        // Primeiro, tentar buscar sem filtro de role para ver se consegue ler a tabela
+        console.log('Tentando ler tabela user_roles...');
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
@@ -85,7 +96,15 @@ const Auth = () => {
           .eq('role', 'admin')
           .maybeSingle();
 
-        console.log('Resultado da verificação admin:', { roleData, roleError, user_id: authData.user.id });
+        console.log('=== RESULTADO DA QUERY ===');
+        console.log('roleData:', roleData);
+        console.log('roleError:', roleError);
+        console.log('user_id usado:', authData.user.id);
+        
+        if (roleError) {
+          console.log('Código do erro:', roleError.code);
+          console.log('Mensagem do erro:', roleError.message);
+        }
 
         if (roleError) {
           console.error('Error checking admin role:', roleError);
