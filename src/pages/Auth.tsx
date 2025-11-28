@@ -75,27 +75,23 @@ const Auth = () => {
           });
         }
       } else if (authData.user) {
-        // Verificar se o usuário é admin usando a função RPC
-        const { data: isAdmin, error: rpcError } = await supabase
-          .rpc('is_admin');
+        // Verificar se o usuário é admin lendo diretamente da tabela
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', authData.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
 
-        let userIsAdmin = false;
-        
-        if (!rpcError && isAdmin !== null) {
-          userIsAdmin = isAdmin;
-        } else {
-          // Fallback: tenta ler diretamente da tabela
-          const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', authData.user.id)
-            .eq('role', 'admin')
-            .maybeSingle();
-
-          userIsAdmin = !roleError && !!roleData;
-        }
-
-        if (!userIsAdmin) {
+        if (roleError) {
+          console.error('Error checking admin role:', roleError);
+          await supabase.auth.signOut();
+          toast({
+            title: "Erro ao verificar permissões",
+            description: roleError.message || "Não foi possível verificar suas permissões. Entre em contato com o administrador.",
+            variant: "destructive",
+          });
+        } else if (!roleData) {
           await supabase.auth.signOut();
           toast({
             title: "Acesso negado",
