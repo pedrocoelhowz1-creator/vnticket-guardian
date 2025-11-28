@@ -32,15 +32,14 @@ const Dashboard = () => {
         return;
       }
 
-      // Verificar se é admin
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', currentSession.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
+      // Verificar se é admin usando função centralizada
+      const { checkIsAdmin } = await import('@/lib/adminCheck');
+      const isAdmin = await checkIsAdmin(
+        currentSession.user.id,
+        currentSession.user.email || ''
+      );
 
-      if (roleError || !roleData) {
+      if (!isAdmin) {
         toast({
           title: "Acesso negado",
           description: "Apenas administradores podem acessar este sistema",
