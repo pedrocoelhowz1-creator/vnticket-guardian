@@ -55,7 +55,8 @@ const CATEGORIES = [
   "Festas e Shows",
   "Esportes",
   "Stand Up Comedy",
-  "Congressos"
+  "Congressos",
+  "Viagem"
 ];
 
 const LOCATIONS = [
@@ -703,11 +704,11 @@ const Events = () => {
                         disabled={uploadingImage}
                       />
                       {imagePreview && (
-                        <div className="relative mt-2 rounded-lg overflow-hidden border">
+                        <div className="relative mt-2 rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
                           <img
                             src={imagePreview}
                             alt="Preview"
-                            className="w-full h-40 object-cover"
+                            className="w-full h-40 object-contain"
                           />
                           <Button
                             type="button"
@@ -737,11 +738,11 @@ const Events = () => {
                         }}
                       />
                       {formData.image_url && (
-                        <div className="mt-2 rounded-lg overflow-hidden border">
+                        <div className="mt-2 rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
                           <img
                             src={formData.image_url}
                             alt="Preview"
-                            className="w-full h-40 object-cover"
+                            className="w-full h-40 object-contain"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = 'none';
                             }}
@@ -827,11 +828,11 @@ const Events = () => {
             {filteredEvents.map((event) => (
               <Card key={event.id} className="shadow-soft overflow-hidden">
                 {event.image_url ? (
-                  <div className="h-48 overflow-hidden">
+                  <div className="h-48 overflow-hidden bg-muted flex items-center justify-center">
                     <img
                       src={event.image_url}
                       alt={event.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = '/placeholder.svg';
                       }}
