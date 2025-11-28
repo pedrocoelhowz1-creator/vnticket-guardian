@@ -7,11 +7,31 @@ import { supabase } from '@/integrations/supabase/client';
 export async function checkIsAdmin(userId: string, userEmail: string): Promise<boolean> {
   try {
     // Método 1: Tentar usar função RPC (busca por email - mais confiável)
-    const { data: rpcResult, error: rpcError } = await supabase
-      .rpc('check_admin_by_email', { user_email: userEmail });
-    
-    if (!rpcError && rpcResult !== null && rpcResult !== undefined) {
-      return rpcResult === true;
+    try {
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('check_admin_by_email', { user_email: userEmail });
+      
+      // Se a RPC funcionou, usar o resultado
+      if (!rpcError && rpcResult !== null && rpcResult !== undefined) {
+        return rpcResult === true;
+      }
+      
+      // Se erro 404 ou função não existe, continuar para fallback
+      if (rpcError) {
+        const is404Error = rpcError.code === 'PGRST116' || 
+                          rpcError.message?.includes('404') || 
+                          rpcError.message?.includes('not found');
+        
+        if (is404Error) {
+          console.log('Função RPC não encontrada (404), usando fallback...');
+        } else {
+          console.warn('Erro na RPC (não é 404):', rpcError);
+          // Se não for 404, ainda tentar fallback
+        }
+      }
+    } catch (rpcException) {
+      // Se der exception (como 404), continuar para fallback
+      console.log('Exception na RPC, usando fallback...', rpcException);
     }
     
     // Método 2: Fallback - buscar diretamente pelo user_id
