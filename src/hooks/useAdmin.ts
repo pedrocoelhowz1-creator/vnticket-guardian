@@ -21,6 +21,8 @@ export function useAdmin() {
 
         // Verificar se o usuário tem role de admin
         // Lê diretamente da tabela user_roles
+        console.log('useAdmin: Verificando admin para user:', currentSession.user.id);
+        
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
@@ -28,10 +30,19 @@ export function useAdmin() {
           .eq('role', 'admin')
           .maybeSingle();
 
+        console.log('useAdmin: Resultado:', { data, error, user_id: currentSession.user.id });
+
         if (error) {
           console.error('Error checking admin role:', error);
+          console.error('Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
           setIsAdmin(false);
         } else {
+          console.log('useAdmin: isAdmin =', !!data);
           setIsAdmin(!!data);
         }
       } catch (error) {
