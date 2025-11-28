@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
+import { checkIsAdmin } from '@/lib/adminCheck';
 
 export function useAdmin() {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
@@ -19,32 +20,12 @@ export function useAdmin() {
           return;
         }
 
-        // Verificar se o usuário tem role de admin
-        // Lê diretamente da tabela user_roles
-        console.log('useAdmin: Verificando admin para user:', currentSession.user.id);
-        
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', currentSession.user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
-
-        console.log('useAdmin: Resultado:', { data, error, user_id: currentSession.user.id });
-
-        if (error) {
-          console.error('Error checking admin role:', error);
-          console.error('Error details:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code
-          });
-          setIsAdmin(false);
-        } else {
-          console.log('useAdmin: isAdmin =', !!data);
-          setIsAdmin(!!data);
-        }
+        // Verificar se o usuário tem role de admin usando função centralizada
+        const adminStatus = await checkIsAdmin(
+          currentSession.user.id,
+          currentSession.user.email || ''
+        );
+        setIsAdmin(adminStatus);
       } catch (error) {
         console.error('Error in useAdmin:', error);
         setIsAdmin(false);
