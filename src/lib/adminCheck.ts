@@ -38,7 +38,10 @@ export async function checkIsAdmin(userId: string, userEmail: string): Promise<b
     }
     
     // Método 2: Fallback - buscar diretamente pelo user_id
-    console.log('Executando fallback - buscando admin pelo user_id:', userId);
+    console.log('=== FALLBACK ATIVADO ===');
+    console.log('Buscando admin pelo user_id:', userId);
+    console.log('Email do usuário:', userEmail);
+    
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
@@ -46,15 +49,25 @@ export async function checkIsAdmin(userId: string, userEmail: string): Promise<b
       .eq('role', 'admin')
       .maybeSingle();
     
-    console.log('Resultado do fallback:', { roleData, roleError, userId });
+    console.log('=== RESULTADO DO FALLBACK ===');
+    console.log('roleData:', roleData);
+    console.log('roleError:', roleError);
+    console.log('userId usado:', userId);
     
     if (roleError) {
-      console.error('Error checking admin (fallback):', roleError);
+      console.error('❌ ERRO no fallback:', roleError);
+      console.error('Código do erro:', roleError.code);
+      console.error('Mensagem:', roleError.message);
       return false;
     }
     
+    if (!roleData) {
+      console.warn('⚠️ Nenhum registro admin encontrado para user_id:', userId);
+      console.warn('Verifique se o registro existe no banco de dados');
+    }
+    
     const isAdminResult = !!roleData;
-    console.log('Resultado final isAdmin:', isAdminResult);
+    console.log('✅ Resultado final isAdmin:', isAdminResult);
     return isAdminResult;
   } catch (error) {
     console.error('Error in checkIsAdmin:', error);
