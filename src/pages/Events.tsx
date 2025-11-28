@@ -10,11 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Calendar, MapPin, DollarSign, Ticket, ArrowLeft, Image, Search, Upload, X, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar, MapPin, DollarSign, Ticket, ArrowLeft, Image, Search, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Session } from "@supabase/supabase-js";
-import logo from "@/assets/logo.png";
 
 interface Event {
   id: string;
@@ -101,13 +100,15 @@ const Events = () => {
         return;
       }
 
-      const { checkIsAdmin } = await import('@/lib/adminCheck');
-      const isAdmin = await checkIsAdmin(
-        currentSession.user.id,
-        currentSession.user.email || ''
-      );
+      // Verificar se é admin
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', currentSession.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
 
-      if (!isAdmin) {
+      if (roleError || !roleData) {
         toast({
           title: "Acesso negado",
           description: "Apenas administradores podem acessar este sistema",
@@ -144,10 +145,17 @@ const Events = () => {
         throw new Error('Sessão não encontrada. Faça login novamente.');
       }
 
+      // URL correta do Supabase (Guardian = VN Ticket)
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co';
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_9MkvN2POLK3J1Qh4GvfIHw_22oBYzGw';
       
+      // Usa POST com action=list
+      console.log('=== INICIANDO CARREGAMENTO DE EVENTOS ===');
+      console.log('Supabase URL:', supabaseUrl);
+      console.log('Session token present:', !!session.access_token);
+      
       const functionUrl = `${supabaseUrl}/functions/v1/manage-events?action=list`;
+      console.log('Function URL:', functionUrl);
       
       const res = await fetch(functionUrl, {
         method: 'POST',
@@ -159,23 +167,75 @@ const Events = () => {
         body: JSON.stringify({})
       });
 
+      console.log('Response received');
+      console.log('Response status:', res.status);
+      console.log('Response headers:', Object.fromEntries(res.headers.entries()));
+      
       const responseText = await res.text();
+      console.log('Response text length:', responseText.length);
+      console.log('Response text:', responseText);
+
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError);
         throw new Error('Resposta inválida do servidor');
       }
       
+      console.log('Events data:', data);
+      
+      // Se a resposta contém eventos, usa eles mesmo se houver erro
       if (data && data.events && Array.isArray(data.events)) {
+        console.log(`✅ Carregando ${data.events.length} eventos`);
+        console.log('Eventos recebidos:', data.events);
         setEvents(data.events);
+        
+        if (data.events.length === 0) {
+          console.warn('⚠️ Array de eventos está vazio');
+          toast({
+            title: "Nenhum evento encontrado",
+            description: "Não há eventos cadastrados no sistema",
+            variant: "default"
+          });
+        }
+        
+        // Se houver erro mas também eventos, mostra aviso
+        if (!res.ok && data.error) {
+          toast({
+            title: "Aviso",
+            description: data.error,
+            variant: "default"
+          });
+        }
       } else if (Array.isArray(data)) {
+        console.log(`✅ Carregando ${data.length} eventos (formato array direto)`);
+        console.log('Eventos recebidos:', data);
         setEvents(data);
+        
+        if (data.length === 0) {
+          console.warn('⚠️ Array de eventos está vazio');
+          toast({
+            title: "Nenhum evento encontrado",
+            description: "Não há eventos cadastrados no sistema",
+            variant: "default"
+          });
+        }
       } else if (!res.ok) {
+        // Só lança erro se não houver eventos na resposta
         const errorMessage = data.error || data.message || `Erro ${res.status}: ${res.statusText}`;
+        console.error('Error response:', data);
         throw new Error(errorMessage);
       } else {
+        console.warn('Formato de resposta inesperado:', data);
+        console.warn('Tipo de data:', typeof data);
+        console.warn('Keys de data:', data ? Object.keys(data) : 'data is null/undefined');
         setEvents([]);
+        toast({
+          title: "Formato de resposta inesperado",
+          description: "A resposta do servidor não está no formato esperado",
+          variant: "destructive"
+        });
       }
     } catch (error: any) {
       console.error('Error loading events:', error);
@@ -228,6 +288,7 @@ const Events = () => {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validar tipo de arquivo
       if (!file.type.startsWith('image/')) {
         toast({
           title: "Arquivo inválido",
@@ -237,6 +298,7 @@ const Events = () => {
         return;
       }
       
+      // Validar tamanho (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Arquivo muito grande",
@@ -269,10 +331,12 @@ const Events = () => {
     try {
       setUploadingImage(true);
       
+      // Criar nome único para o arquivo
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `event-images/${fileName}`;
 
+      // Fazer upload para o Supabase Storage
       const { data, error } = await supabase.storage
         .from('events')
         .upload(filePath, imageFile, {
@@ -281,17 +345,26 @@ const Events = () => {
         });
 
       if (error) {
+        // Se o bucket não existir, criar
         if (error.message.includes('not found') || error.message.includes('Bucket')) {
+          toast({
+            title: "Bucket não encontrado",
+            description: "Criando bucket 'events' no Storage...",
+          });
+          
+          // Tentar criar o bucket (requer permissões admin)
           const { error: createError } = await supabase.storage.createBucket('events', {
             public: true,
-            fileSizeLimit: 5242880,
+            fileSizeLimit: 5242880, // 5MB
             allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
           });
 
           if (createError) {
-            throw new Error('Não foi possível criar o bucket.');
+            console.error('Erro ao criar bucket:', createError);
+            throw new Error('Não foi possível criar o bucket. Configure o bucket "events" no Supabase Storage manualmente.');
           }
 
+          // Tentar upload novamente
           const { data: retryData, error: retryError } = await supabase.storage
             .from('events')
             .upload(filePath, imageFile);
@@ -307,6 +380,7 @@ const Events = () => {
         throw error;
       }
 
+      // Obter URL pública da imagem
       const { data: urlData } = supabase.storage
         .from('events')
         .getPublicUrl(filePath);
@@ -341,12 +415,14 @@ const Events = () => {
       setSaving(true);
       const { data: { session } } = await supabase.auth.getSession();
 
+      // Fazer upload da imagem se houver arquivo selecionado
       let imageUrl = formData.image_url;
       if (useImageUpload && imageFile) {
         const uploadedUrl = await uploadImage();
         if (uploadedUrl) {
           imageUrl = uploadedUrl;
         } else {
+          // Se o upload falhar, não salvar o evento
           return;
         }
       }
@@ -365,6 +441,18 @@ const Events = () => {
       const action = editingEvent ? 'update' : 'create';
       const body = editingEvent ? { id: editingEvent.id, ...eventData } : eventData;
 
+      const response = await supabase.functions.invoke('manage-events', {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        },
+        body,
+        method: 'POST'
+      });
+
+      // Check URL for action parameter workaround
+      const url = new URL(`${window.location.origin}/manage-events?action=${action}`);
+
+      // URL correta do Supabase (Guardian = VN Ticket)
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co';
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_9MkvN2POLK3J1Qh4GvfIHw_22oBYzGw';
       
@@ -405,6 +493,7 @@ const Events = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
+      // URL correta do Supabase (Guardian = VN Ticket)
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co';
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_9MkvN2POLK3J1Qh4GvfIHw_22oBYzGw';
       
@@ -446,50 +535,37 @@ const Events = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background circuit-bg">
-        <div className="text-center animate-fade-in">
-          <div className="w-16 h-16 mx-auto mb-4">
-            <img src={logo} alt="VN TICKET" className="w-full h-full object-contain animate-float" />
-          </div>
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-          <p className="mt-4 text-muted-foreground text-sm">Carregando eventos...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Carregando eventos...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background circuit-bg">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-card shadow-soft">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate("/dashboard")}
-              className="hover:bg-secondary/50"
-            >
+            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex items-center gap-3">
-              <img src={logo} alt="VN TICKET" className="w-8 h-8 object-contain" />
-              <h1 className="text-lg font-bold gradient-text">Eventos</h1>
-            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Eventos
+            </h1>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button 
-                onClick={() => handleOpenDialog()}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
-              >
+              <Button onClick={() => handleOpenDialog()}>
                 <Plus className="mr-2 h-4 w-4" />
-                Novo
+                Novo Evento
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/50">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="gradient-text">{editingEvent ? "Editar Evento" : "Novo Evento"}</DialogTitle>
+                <DialogTitle>{editingEvent ? "Editar Evento" : "Novo Evento"}</DialogTitle>
                 <DialogDescription>
                   {editingEvent ? "Atualize as informações do evento" : "Preencha as informações do novo evento"}
                 </DialogDescription>
@@ -499,12 +575,11 @@ const Events = () => {
                   <Label htmlFor="title">Título *</Label>
                   <Input
                     id="title"
-                    placeholder="Ex: Festa de Cor"
+                    placeholder="Ex: Festa de Cor - Dia da Consciência Negra"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     required
                     maxLength={200}
-                    className="bg-secondary/50 border-border/50 focus:border-primary"
                   />
                 </div>
 
@@ -517,14 +592,13 @@ const Events = () => {
                       value={formData.date}
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                       required
-                      className="bg-secondary/50 border-border/50 focus:border-primary"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="category">Categoria</Label>
                     <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                      <SelectTrigger className="bg-secondary/50 border-border/50">
-                        <SelectValue placeholder="Selecione" />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a categoria" />
                       </SelectTrigger>
                       <SelectContent>
                         {CATEGORIES.map(cat => (
@@ -537,21 +611,25 @@ const Events = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="location">Local *</Label>
-                  <Input
-                    id="location"
-                    type="text"
-                    placeholder="Digite o local"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    list="location-suggestions"
-                    required
-                    className="bg-secondary/50 border-border/50 focus:border-primary"
-                  />
-                  <datalist id="location-suggestions">
-                    {LOCATIONS.map(loc => (
-                      <option key={loc} value={loc} />
-                    ))}
-                  </datalist>
+                  <div className="relative">
+                    <Input
+                      id="location"
+                      type="text"
+                      placeholder="Digite o local do evento"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      list="location-suggestions"
+                      required
+                    />
+                    <datalist id="location-suggestions">
+                      {LOCATIONS.map(loc => (
+                        <option key={loc} value={loc} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Digite o local ou selecione uma sugestão
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -567,11 +645,10 @@ const Events = () => {
                       value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                       required
-                      className="bg-secondary/50 border-border/50 focus:border-primary"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="available_tickets">Ingressos *</Label>
+                    <Label htmlFor="available_tickets">Ingressos Disponíveis *</Label>
                     <Input
                       id="available_tickets"
                       type="number"
@@ -581,13 +658,14 @@ const Events = () => {
                       value={formData.available_tickets}
                       onChange={(e) => setFormData({ ...formData, available_tickets: e.target.value })}
                       required
-                      className="bg-secondary/50 border-border/50 focus:border-primary"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Imagem do Evento</Label>
+                  <Label htmlFor="image">Imagem do Evento</Label>
+                  
+                  {/* Toggle entre Upload e URL */}
                   <div className="flex gap-2 mb-2">
                     <Button
                       type="button"
@@ -597,10 +675,9 @@ const Events = () => {
                         setUseImageUpload(true);
                         setFormData({ ...formData, image_url: "" });
                       }}
-                      className={useImageUpload ? "bg-primary text-primary-foreground" : "border-border/50"}
                     >
                       <Upload className="mr-2 h-4 w-4" />
-                      Upload
+                      Fazer Upload
                     </Button>
                     <Button
                       type="button"
@@ -611,40 +688,47 @@ const Events = () => {
                         setImageFile(null);
                         setImagePreview(null);
                       }}
-                      className={!useImageUpload ? "bg-primary text-primary-foreground" : "border-border/50"}
                     >
                       <Image className="mr-2 h-4 w-4" />
-                      URL
+                      Usar URL
                     </Button>
                   </div>
 
                   {useImageUpload ? (
                     <div className="space-y-2">
                       <Input
+                        id="image_file"
                         type="file"
                         accept="image/*"
                         onChange={handleImageSelect}
                         disabled={uploadingImage}
-                        className="bg-secondary/50 border-border/50"
                       />
                       {imagePreview && (
-                        <div className="relative mt-2 rounded-lg overflow-hidden border border-border/50 bg-secondary/30">
-                          <img src={imagePreview} alt="Preview" className="w-full h-40 object-contain" />
+                        <div className="relative mt-2 rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-40 object-contain"
+                          />
                           <Button
                             type="button"
                             variant="destructive"
                             size="icon"
-                            className="absolute top-2 right-2 h-8 w-8"
+                            className="absolute top-2 right-2"
                             onClick={handleRemoveImage}
                           >
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
                       )}
+                      {uploadingImage && (
+                        <p className="text-sm text-muted-foreground">Fazendo upload...</p>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <Input
+                        id="image_url"
                         type="url"
                         placeholder="https://exemplo.com/imagem.jpg"
                         value={formData.image_url}
@@ -652,15 +736,16 @@ const Events = () => {
                           setFormData({ ...formData, image_url: e.target.value });
                           setImagePreview(e.target.value || null);
                         }}
-                        className="bg-secondary/50 border-border/50 focus:border-primary"
                       />
                       {formData.image_url && (
-                        <div className="mt-2 rounded-lg overflow-hidden border border-border/50 bg-secondary/30">
+                        <div className="mt-2 rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
                           <img
                             src={formData.image_url}
                             alt="Preview"
                             className="w-full h-40 object-contain"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
                           />
                         </div>
                       )}
@@ -672,25 +757,20 @@ const Events = () => {
                   <Label htmlFor="description">Descrição</Label>
                   <Textarea
                     id="description"
-                    placeholder="Descreva o evento..."
+                    placeholder="Descreva o evento em detalhes..."
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     maxLength={2000}
-                    rows={3}
-                    className="bg-secondary/50 border-border/50 focus:border-primary resize-none"
+                    rows={4}
                   />
                 </div>
 
-                <DialogFooter className="gap-2">
-                  <Button type="button" variant="outline" onClick={handleCloseDialog} className="border-border/50">
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={handleCloseDialog}>
                     Cancelar
                   </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={saving || uploadingImage}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    {uploadingImage ? "Enviando..." : saving ? "Salvando..." : editingEvent ? "Atualizar" : "Criar"}
+                  <Button type="submit" disabled={saving || uploadingImage}>
+                    {uploadingImage ? "Fazendo upload..." : saving ? "Salvando..." : editingEvent ? "Atualizar" : "Criar Evento"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -699,24 +779,24 @@ const Events = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 animate-fade-in">
+      <main className="container mx-auto px-4 py-8">
         {/* Search and Filter */}
-        <div className="flex flex-col md:flex-row gap-3 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar eventos..."
+              placeholder="Buscar por título ou local..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-secondary/50 border-border/50 focus:border-primary"
+              className="pl-10"
             />
           </div>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-full md:w-44 bg-secondary/50 border-border/50">
-              <SelectValue placeholder="Categoria" />
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder="Filtrar categoria" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="all">Todas categorias</SelectItem>
               {CATEGORIES.map(cat => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
@@ -726,85 +806,95 @@ const Events = () => {
 
         {/* Events Grid */}
         {filteredEvents.length === 0 ? (
-          <Card className="stats-card neon-border">
+          <Card className="shadow-soft">
             <CardContent className="py-12 text-center">
-              <Calendar className="h-12 w-12 mx-auto text-primary/50 mb-4" />
+              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">
-                {events.length === 0 ? "Nenhum evento cadastrado" : "Nenhum evento encontrado"}
+                {events.length === 0 
+                  ? "Nenhum evento cadastrado ainda"
+                  : "Nenhum evento encontrado com os filtros aplicados"
+                }
               </p>
               {events.length === 0 && (
-                <Button className="mt-4 bg-primary hover:bg-primary/90" onClick={() => handleOpenDialog()}>
+                <Button className="mt-4" onClick={() => handleOpenDialog()}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Criar evento
+                  Criar primeiro evento
                 </Button>
               )}
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredEvents.map((event, index) => (
-              <Card 
-                key={event.id} 
-                className="stats-card neon-border card-hover overflow-hidden animate-fade-in"
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredEvents.map((event) => (
+              <Card key={event.id} className="shadow-soft overflow-hidden">
                 {event.image_url ? (
-                  <div className="h-40 overflow-hidden bg-secondary/30 flex items-center justify-center">
+                  <div className="h-48 overflow-hidden bg-muted flex items-center justify-center">
                     <img
                       src={event.image_url}
                       alt={event.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/placeholder.svg';
+                      }}
                     />
                   </div>
                 ) : (
-                  <div className="h-40 bg-secondary/30 flex items-center justify-center">
-                    <Image className="h-10 w-10 text-muted-foreground/30" />
+                  <div className="h-48 bg-muted flex items-center justify-center">
+                    <Image className="h-12 w-12 text-muted-foreground" />
                   </div>
                 )}
-                <CardHeader className="pb-2 pt-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base line-clamp-1">{event.title}</CardTitle>
-                    {event.category && (
-                      <span className="shrink-0 text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                        {event.category}
-                      </span>
-                    )}
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg line-clamp-1">{event.title}</CardTitle>
+                      {event.category && (
+                        <span className="inline-block mt-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                          {event.category}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-1.5 text-xs text-muted-foreground">
+                <CardContent>
+                  <div className="space-y-2 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-3.5 w-3.5 text-primary" />
-                      <span>{format(new Date(event.date), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}</span>
+                      <Calendar className="h-4 w-4" />
+                      <span>
+                        {format(new Date(event.date), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 text-primary" />
+                      <MapPin className="h-4 w-4" />
                       <span className="line-clamp-1">{event.location}</span>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3.5 w-3.5 text-success" />
-                        <span className="text-success font-medium">R$ {event.price.toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Ticket className="h-3.5 w-3.5" />
-                        <span>{event.available_tickets}</span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      <span>R$ {event.price.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Ticket className="h-4 w-4" />
+                      <span>{event.available_tickets} ingressos</span>
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-border/30">
-                    <p className="text-[10px] text-muted-foreground/70 font-mono truncate">
-                      {event.id}
-                    </p>
-                  </div>
+                  {event.description && (
+                    <CardDescription className="mt-3 text-xs">
+                      {event.description}
+                      <br />
+                      <span className="text-muted-foreground/70 font-mono">UUID: {event.id}</span>
+                    </CardDescription>
+                  )}
+                  {!event.description && (
+                    <CardDescription className="mt-3 text-xs">
+                      <span className="text-muted-foreground/70 font-mono">UUID: {event.id}</span>
+                    </CardDescription>
+                  )}
 
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex gap-2 mt-4">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 h-9 border-border/50 hover:bg-secondary/50"
+                      className="flex-1"
                       onClick={() => handleOpenDialog(event)}
                     >
                       <Pencil className="mr-1 h-3 w-3" />
@@ -812,11 +902,11 @@ const Events = () => {
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="h-9 w-9 p-0">
-                          <Trash2 className="h-3.5 w-3.5" />
+                        <Button variant="destructive" size="sm">
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent className="bg-card border-border/50">
+                      <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
                           <AlertDialogDescription>
@@ -824,11 +914,8 @@ const Events = () => {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel className="border-border/50">Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(event)}
-                            className="bg-destructive hover:bg-destructive/90"
-                          >
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(event)}>
                             Excluir
                           </AlertDialogAction>
                         </AlertDialogFooter>

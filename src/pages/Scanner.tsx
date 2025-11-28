@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, CheckCircle, XCircle, Loader2, ScanLine } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import type { Session } from "@supabase/supabase-js";
-import logo from "@/assets/logo.png";
 
 interface ValidationResult {
   status: 'valid' | 'invalid' | 'error';
@@ -38,13 +37,15 @@ const Scanner = () => {
         return;
       }
 
-      const { checkIsAdmin } = await import('@/lib/adminCheck');
-      const isAdmin = await checkIsAdmin(
-        currentSession.user.id,
-        currentSession.user.email || ''
-      );
+      // Verificar se é admin
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', currentSession.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
 
-      if (!isAdmin) {
+      if (roleError || !roleData) {
         toast({
           title: "Acesso negado",
           description: "Apenas administradores podem acessar este sistema",
@@ -91,6 +92,7 @@ const Scanner = () => {
     }
 
     try {
+      // Se já existir uma instância, garante que ela foi parada e limpa antes
       if (html5QrcodeRef.current) {
         try {
           await html5QrcodeRef.current.stop();
@@ -110,7 +112,7 @@ const Scanner = () => {
           qrbox: { width: 250, height: 250 },
         },
         onScanSuccess,
-        () => {}
+        () => {} // Ignore scan errors
       );
 
       setScanning(true);
@@ -221,77 +223,58 @@ const Scanner = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background circuit-bg pb-20">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate("/dashboard")}
-            className="hover:bg-secondary/50"
-          >
+    <div className="min-h-screen bg-background pb-20">
+      <header className="border-b bg-card shadow-soft sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4 flex items-center space-x-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="VN TICKET" className="w-8 h-8 object-contain" />
-            <h1 className="text-lg font-bold">Validar Ingresso</h1>
-          </div>
+          <h1 className="text-xl font-bold">Validar Ingresso</h1>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-4 animate-fade-in">
-        {/* Event ID Card */}
-        <Card className="stats-card neon-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">ID do Evento</CardTitle>
-            <CardDescription className="text-xs">Informe o UUID do evento</CardDescription>
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        <Card className="shadow-medium">
+          <CardHeader>
+            <CardTitle>ID do Evento</CardTitle>
+            <CardDescription>Informe o UUID do evento antes de escanear</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <Label htmlFor="eventId" className="text-xs text-muted-foreground">UUID</Label>
+              <Label htmlFor="eventId">UUID do Evento</Label>
               <Input
                 id="eventId"
                 placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                 value={eventId}
                 onChange={(e) => setEventId(e.target.value)}
                 disabled={scanning || validating}
-                className="h-11 bg-secondary/50 border-border/50 focus:border-primary font-mono text-xs"
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Scanner Card */}
-        <Card className="stats-card neon-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ScanLine className="h-5 w-5 text-primary" />
-              Scanner QR
+        <Card className="shadow-medium">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <ScanLine className="h-5 w-5" />
+              <span>Scanner QR Code</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div 
               id="qr-reader" 
               ref={scannerRef}
-              className="w-full rounded-xl overflow-hidden min-h-[260px] bg-background/80 border border-border/30"
+              className="w-full rounded-lg overflow-hidden min-h-[260px] bg-black/80"
             />
 
             {!scanning && !validating && (
-              <Button 
-                onClick={startScanner} 
-                className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
-              >
+              <Button onClick={startScanner} className="w-full" size="lg">
                 Iniciar Scanner
               </Button>
             )}
 
             {scanning && (
-              <Button 
-                onClick={stopScanner} 
-                variant="destructive" 
-                className="w-full h-12"
-              >
+              <Button onClick={stopScanner} variant="destructive" className="w-full" size="lg">
                 Parar Scanner
               </Button>
             )}
@@ -299,80 +282,66 @@ const Scanner = () => {
             {validating && (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-3 text-muted-foreground">Validando...</span>
+                <span className="ml-2">Validando ingresso...</span>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Manual Validation */}
-        <Card className="stats-card neon-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Validação Manual</CardTitle>
-            <CardDescription className="text-xs">Cole o código QR</CardDescription>
+        <Card className="shadow-medium">
+          <CardHeader>
+            <CardTitle>Validação Manual</CardTitle>
+            <CardDescription>Cole o código QR manualmente</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleManualValidation} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="manualQr" className="text-xs text-muted-foreground">Código (Base64)</Label>
+                <Label htmlFor="manualQr">Código QR (Base64)</Label>
                 <Input
                   id="manualQr"
                   name="manualQr"
                   placeholder="Cole o código aqui..."
                   disabled={scanning || validating}
-                  className="h-11 bg-secondary/50 border-border/50 focus:border-primary font-mono text-xs"
                 />
               </div>
-              <Button 
-                type="submit" 
-                variant="outline" 
-                className="w-full h-11 border-border/50 hover:bg-secondary/50" 
-                disabled={scanning || validating}
-              >
+              <Button type="submit" variant="outline" className="w-full" disabled={scanning || validating}>
                 Validar Manualmente
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {/* Result Card */}
         {result && (
-          <Card className={`neon-border animate-scale-in ${
-            result.status === 'valid' 
-              ? 'border-success/50 bg-success/5' 
-              : 'border-destructive/50 bg-destructive/5'
-          }`}>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
+          <Card className={`shadow-strong ${result.status === 'valid' ? 'border-success' : 'border-destructive'} border-2`}>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
                 {result.status === 'valid' ? (
                   <CheckCircle className="h-6 w-6 text-success" />
                 ) : (
                   <XCircle className="h-6 w-6 text-destructive" />
                 )}
-                <span className={result.status === 'valid' ? 'text-success' : 'text-destructive'}>
-                  {result.status === 'valid' ? 'Ingresso Válido' : 'Ingresso Inválido'}
-                </span>
+                <span>{result.status === 'valid' ? 'Ingresso Válido' : 'Ingresso Inválido'}</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {result.reason && (
                 <p className="text-sm text-muted-foreground">
-                  <span className="font-medium">Motivo:</span> {result.reason}
+                  <strong>Motivo:</strong> {result.reason}
                 </p>
               )}
               {result.data && (
-                <div className="text-sm space-y-1 bg-secondary/30 rounded-lg p-3">
+                <div className="text-sm space-y-1">
                   {result.data.buyer_name && (
-                    <p><span className="text-muted-foreground">Nome:</span> {result.data.buyer_name}</p>
+                    <p><strong>Nome:</strong> {result.data.buyer_name}</p>
                   )}
                   {result.data.email && (
-                    <p><span className="text-muted-foreground">Email:</span> {result.data.email}</p>
+                    <p><strong>Email:</strong> {result.data.email}</p>
                   )}
                   {result.data.quantity && (
-                    <p><span className="text-muted-foreground">Quantidade:</span> {result.data.quantity}</p>
+                    <p><strong>Quantidade:</strong> {result.data.quantity}</p>
                   )}
                   {result.data.event_name && (
-                    <p><span className="text-muted-foreground">Evento:</span> {result.data.event_name}</p>
+                    <p><strong>Evento:</strong> {result.data.event_name}</p>
                   )}
                 </div>
               )}
@@ -381,7 +350,7 @@ const Scanner = () => {
                   setResult(null);
                   if (!scanning) startScanner();
                 }} 
-                className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground"
+                className="w-full mt-4"
               >
                 Escanear Próximo
               </Button>

@@ -8,8 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
-import logo from "@/assets/logo.png";
-import { checkIsAdmin } from "@/lib/adminCheck";
 
 const authSchema = z.object({
   email: z.string().email({ message: "Email inválido" }),
@@ -24,6 +22,7 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Check if already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         navigate("/dashboard");
@@ -42,15 +41,11 @@ const Auth = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    console.log('=== INÍCIO DO LOGIN ===');
-    console.log('Email:', email);
 
     try {
       const validation = authSchema.safeParse({ email, password });
       
       if (!validation.success) {
-        console.log('Erro de validação:', validation.error);
         toast({
           title: "Erro de validação",
           description: validation.error.errors[0].message,
@@ -60,13 +55,10 @@ const Auth = () => {
         return;
       }
 
-      console.log('Tentando fazer login...');
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
-      console.log('Resultado do login:', { hasUser: !!authData?.user, error });
 
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
@@ -83,10 +75,16 @@ const Auth = () => {
           });
         }
       } else if (authData.user) {
-        // Verificar se o usuário é admin usando função centralizada
-        const isAdmin = await checkIsAdmin(authData.user.id, authData.user.email || '');
-        
-        if (!isAdmin) {
+        // Verificar se o usuário tem role de admin
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', authData.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (roleError || !roleData) {
+          // Usuário não é admin - fazer logout
           await supabase.auth.signOut();
           toast({
             title: "Acesso negado",
@@ -112,80 +110,47 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background circuit-bg grid-pattern p-4 relative overflow-hidden">
-      {/* Background decorations */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      </div>
-      
-      <div className="w-full max-w-md relative z-10 animate-fade-in">
-        <Card className="neon-border bg-card/80 backdrop-blur-xl">
-          <CardHeader className="space-y-6 text-center pb-2">
-            <div className="mx-auto w-24 h-24 relative animate-float">
-              <img 
-                src={logo} 
-                alt="VN TICKET" 
-                className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(0,200,255,0.5)]"
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md shadow-medium">
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            VN TICKET
+          </CardTitle>
+          <CardDescription>Entre com sua conta administrativa</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@vnticket.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
               />
             </div>
-            <div className="space-y-1">
-              <CardTitle className="text-3xl font-bold gradient-text tracking-tight">
-                VN TICKET
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Painel Administrativo
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <form onSubmit={handleAuth} className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium text-foreground/80">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@vnticket.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="h-12 bg-secondary/50 border-border/50 focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium text-foreground/80">
-                  Senha
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="h-12 bg-secondary/50 border-border/50 focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50"
-                />
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow hover:shadow-neon transition-all duration-300" 
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
                 disabled={loading}
-              >
-                {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-                Entrar
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-        
-        <p className="text-center text-xs text-muted-foreground/60 mt-6">
-          Sistema de Validação de Ingressos
-        </p>
-      </div>
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Entrar
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };

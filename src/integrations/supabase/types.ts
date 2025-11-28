@@ -86,12 +86,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      check_admin_by_email: {
-        Args: {
-          user_email: string
-        }
-        Returns: boolean
-      }
     }
     Enums: {
       app_role: "admin" | "moderator"
