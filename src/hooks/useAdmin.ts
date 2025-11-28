@@ -20,27 +20,19 @@ export function useAdmin() {
         }
 
         // Verificar se o usuário tem role de admin
-        // Primeiro tenta usar a função RPC (mais confiável)
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc('is_admin');
+        // Lê diretamente da tabela user_roles
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', currentSession.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
 
-        if (!rpcError && rpcData !== null) {
-          setIsAdmin(rpcData);
+        if (error) {
+          console.error('Error checking admin role:', error);
+          setIsAdmin(false);
         } else {
-          // Fallback: tenta ler diretamente da tabela (requer política RLS adequada)
-          const { data, error } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', currentSession.user.id)
-            .eq('role', 'admin')
-            .maybeSingle();
-
-          if (error) {
-            console.error('Error checking admin role:', error);
-            setIsAdmin(false);
-          } else {
-            setIsAdmin(!!data);
-          }
+          setIsAdmin(!!data);
         }
       } catch (error) {
         console.error('Error in useAdmin:', error);
