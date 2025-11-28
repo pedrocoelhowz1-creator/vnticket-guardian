@@ -610,16 +610,25 @@ const Events = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="location">Local *</Label>
-                  <Select value={formData.location} onValueChange={(value) => setFormData({ ...formData, location: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o local" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  <div className="relative">
+                    <Input
+                      id="location"
+                      type="text"
+                      placeholder="Digite o local do evento"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      list="location-suggestions"
+                      required
+                    />
+                    <datalist id="location-suggestions">
                       {LOCATIONS.map(loc => (
-                        <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                        <option key={loc} value={loc} />
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </datalist>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Digite o local ou selecione uma sugestão
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
