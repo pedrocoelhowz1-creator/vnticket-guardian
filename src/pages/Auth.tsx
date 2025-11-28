@@ -76,6 +76,8 @@ const Auth = () => {
         }
       } else if (authData.user) {
         // Verificar se o usuário é admin lendo diretamente da tabela
+        console.log('Verificando admin para user:', authData.user.id, authData.user.email);
+        
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
@@ -83,8 +85,16 @@ const Auth = () => {
           .eq('role', 'admin')
           .maybeSingle();
 
+        console.log('Resultado da verificação admin:', { roleData, roleError, user_id: authData.user.id });
+
         if (roleError) {
           console.error('Error checking admin role:', roleError);
+          console.error('Error details:', {
+            message: roleError.message,
+            details: roleError.details,
+            hint: roleError.hint,
+            code: roleError.code
+          });
           await supabase.auth.signOut();
           toast({
             title: "Erro ao verificar permissões",
@@ -92,6 +102,17 @@ const Auth = () => {
             variant: "destructive",
           });
         } else if (!roleData) {
+          console.warn('Usuário não encontrado na tabela user_roles ou não é admin');
+          console.log('Tentando buscar todos os registros do usuário...');
+          
+          // Debug: tentar buscar todos os registros do usuário
+          const { data: allRoles, error: allRolesError } = await supabase
+            .from('user_roles')
+            .select('*')
+            .eq('user_id', authData.user.id);
+          
+          console.log('Todos os registros do usuário:', { allRoles, allRolesError });
+          
           await supabase.auth.signOut();
           toast({
             title: "Acesso negado",
@@ -99,6 +120,7 @@ const Auth = () => {
             variant: "destructive",
           });
         } else {
+          console.log('✓ Usuário é admin, login permitido');
           toast({
             title: "Login realizado!",
             description: "Bem-vindo de volta",
