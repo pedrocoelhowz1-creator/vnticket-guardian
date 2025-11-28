@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import logo from "@/assets/logo.png";
+import { checkIsAdmin } from "@/lib/adminCheck";
 
 const authSchema = z.object({
   email: z.string().email({ message: "Email inválido" }),
@@ -82,76 +83,10 @@ const Auth = () => {
           });
         }
       } else if (authData.user) {
-        // Verificar se o usuário é admin
-        console.log('=== VERIFICANDO ADMIN ===');
-        console.log('User ID:', authData.user.id);
-        console.log('User Email:', authData.user.email);
-        
-        // Tentar primeiro com a função RPC (se existir)
-        let isAdmin = false;
-        const { data: rpcResult, error: rpcError } = await supabase
-          .rpc('check_admin_by_email', { user_email: authData.user.email });
-        
-        if (!rpcError && rpcResult !== null) {
-          console.log('Resultado RPC:', rpcResult);
-          isAdmin = rpcResult;
-        } else {
-          // Fallback: buscar diretamente pelo user_id
-          console.log('RPC não disponível, usando query direta...');
-          console.log('⚠️ ATENÇÃO: Se o ID estiver errado, a função RPC precisa ser criada!');
-          
-          const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', authData.user.id)
-            .eq('role', 'admin')
-            .maybeSingle();
-
-          console.log('=== RESULTADO DA QUERY ===');
-          console.log('roleData:', roleData);
-          console.log('roleError:', roleError);
-          console.log('user_id usado:', authData.user.id);
-          
-          if (roleError) {
-            console.log('Código do erro:', roleError.code);
-            console.log('Mensagem do erro:', roleError.message);
-          }
-          
-          isAdmin = !!roleData;
-          
-          if (roleError) {
-            console.error('Error checking admin role:', roleError);
-            console.error('Error details:', {
-              message: roleError.message,
-              details: roleError.details,
-              hint: roleError.hint,
-              code: roleError.code
-            });
-            await supabase.auth.signOut();
-            toast({
-              title: "Erro ao verificar permissões",
-              description: roleError.message || "Não foi possível verificar suas permissões. Entre em contato com o administrador.",
-              variant: "destructive",
-            });
-            setLoading(false);
-            return;
-          }
-        }
-        
-        console.log('isAdmin final:', isAdmin);
+        // Verificar se o usuário é admin usando função centralizada
+        const isAdmin = await checkIsAdmin(authData.user.id, authData.user.email || '');
         
         if (!isAdmin) {
-          console.warn('Usuário não encontrado na tabela user_roles ou não é admin');
-          console.log('Tentando buscar todos os registros do usuário...');
-          
-          // Debug: tentar buscar todos os registros do usuário
-          const { data: allRoles, error: allRolesError } = await supabase
-            .from('user_roles')
-            .select('*')
-            .eq('user_id', authData.user.id);
-          
-          console.log('Todos os registros do usuário:', { allRoles, allRolesError });
-          
           await supabase.auth.signOut();
           toast({
             title: "Acesso negado",
@@ -159,7 +94,6 @@ const Auth = () => {
             variant: "destructive",
           });
         } else {
-          console.log('✓ Usuário é admin, login permitido');
           toast({
             title: "Login realizado!",
             description: "Bem-vindo de volta",
