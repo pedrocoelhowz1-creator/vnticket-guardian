@@ -22,13 +22,14 @@ export async function checkIsAdmin(userId: string, userEmail: string): Promise<b
                                   rpcError.code === 'PGRST202' ||
                                   rpcError.message?.includes('404') || 
                                   rpcError.message?.includes('not found') ||
-                                  rpcError.message?.includes('Could not find the function');
+                                  rpcError.message?.includes('Could not find the function') ||
+                                  rpcError.message?.includes('schema cache');
         
         if (isFunctionNotFound) {
-          console.log('Função RPC não encontrada, usando fallback...');
+          console.log('Função RPC não encontrada (PGRST202), usando fallback...');
         } else {
-          console.warn('Erro na RPC:', rpcError);
-          // Se não for função não encontrada, ainda tentar fallback
+          console.warn('Erro na RPC (outro tipo):', rpcError);
+          // Mesmo assim, tentar fallback
         }
       }
     } catch (rpcException) {
@@ -37,6 +38,7 @@ export async function checkIsAdmin(userId: string, userEmail: string): Promise<b
     }
     
     // Método 2: Fallback - buscar diretamente pelo user_id
+    console.log('Executando fallback - buscando admin pelo user_id:', userId);
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
@@ -44,12 +46,16 @@ export async function checkIsAdmin(userId: string, userEmail: string): Promise<b
       .eq('role', 'admin')
       .maybeSingle();
     
+    console.log('Resultado do fallback:', { roleData, roleError, userId });
+    
     if (roleError) {
       console.error('Error checking admin (fallback):', roleError);
       return false;
     }
     
-    return !!roleData;
+    const isAdminResult = !!roleData;
+    console.log('Resultado final isAdmin:', isAdminResult);
+    return isAdminResult;
   } catch (error) {
     console.error('Error in checkIsAdmin:', error);
     return false;
