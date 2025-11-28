@@ -877,6 +877,19 @@ const Events = () => {
                     </div>
                   </div>
 
+                  {event.description && (
+                    <CardDescription className="mt-3 text-xs">
+                      {event.description}
+                      <br />
+                      <span className="text-muted-foreground/70 font-mono">UUID: {event.id}</span>
+                    </CardDescription>
+                  )}
+                  {!event.description && (
+                    <CardDescription className="mt-3 text-xs">
+                      <span className="text-muted-foreground/70 font-mono">UUID: {event.id}</span>
+                    </CardDescription>
+                  )}
+
                   <div className="flex gap-2 mt-4">
                     <Button
                       variant="outline"
