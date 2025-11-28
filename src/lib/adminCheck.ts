@@ -18,15 +18,17 @@ export async function checkIsAdmin(userId: string, userEmail: string): Promise<b
       
       // Se erro 404 ou função não existe, continuar para fallback
       if (rpcError) {
-        const is404Error = rpcError.code === 'PGRST116' || 
-                          rpcError.message?.includes('404') || 
-                          rpcError.message?.includes('not found');
+        const isFunctionNotFound = rpcError.code === 'PGRST116' || 
+                                  rpcError.code === 'PGRST202' ||
+                                  rpcError.message?.includes('404') || 
+                                  rpcError.message?.includes('not found') ||
+                                  rpcError.message?.includes('Could not find the function');
         
-        if (is404Error) {
-          console.log('Função RPC não encontrada (404), usando fallback...');
+        if (isFunctionNotFound) {
+          console.log('Função RPC não encontrada, usando fallback...');
         } else {
-          console.warn('Erro na RPC (não é 404):', rpcError);
-          // Se não for 404, ainda tentar fallback
+          console.warn('Erro na RPC:', rpcError);
+          // Se não for função não encontrada, ainda tentar fallback
         }
       }
     } catch (rpcException) {
