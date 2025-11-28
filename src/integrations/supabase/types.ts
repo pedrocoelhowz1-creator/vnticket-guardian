@@ -86,8 +86,10 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
+      check_admin_by_email: {
+        Args: {
+          user_email: string
+        }
         Returns: boolean
       }
     }
