@@ -58,7 +58,9 @@ const initialFormData: EventFormData = {
   image_url: "",
   image_fit: "contain",
   category: "",
-  producer_id: ""
+  producer_id: "",
+  has_fee: false,
+  fee_amount: ""
 };
 
 const CATEGORIES = [
@@ -416,7 +418,9 @@ const Events = () => {
         available_tickets: parseInt(formData.available_tickets),
         image_url: imageUrl || null,
         category: formData.category || null,
-        producer_id: isAdmin ? (formData.producer_id || null) : (isProducer ? session?.user?.id : null)
+        producer_id: isAdmin ? (formData.producer_id || null) : (isProducer ? session?.user?.id : null),
+        has_fee: formData.has_fee,
+        fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) : 0
       };
 
       const action = editingEvent ? 'update' : 'create';
@@ -809,7 +813,8 @@ const Events = () => {
                 </Button>
               </DialogFooter>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          )}
         </div>
       </header>
 
