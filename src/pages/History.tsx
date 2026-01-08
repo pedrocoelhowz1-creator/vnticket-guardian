@@ -25,22 +25,19 @@ const History = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkAccess = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
-      
+
       if (!currentSession?.user) {
         navigate("/auth");
         return;
       }
 
-      const { checkIsAdmin } = await import('@/lib/adminCheck');
-      const isAdmin = await checkIsAdmin(
-        currentSession.user.id,
-        currentSession.user.email || ''
-      );
+      const { checkIsAdminOrProducer } = await import('@/lib/adminCheck');
+      const hasAccess = await checkIsAdminOrProducer(currentSession.user.id);
 
-      if (!isAdmin) {
+      if (!hasAccess) {
         await supabase.auth.signOut();
         navigate("/auth");
         return;
@@ -49,14 +46,14 @@ const History = () => {
       loadCheckins();
     };
 
-    checkAdmin();
+    checkAccess();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (!session) {
         navigate("/auth");
       } else {
-        checkAdmin();
+        checkAccess();
       }
     });
 

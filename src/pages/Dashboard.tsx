@@ -13,6 +13,8 @@ interface CheckinStats {
   valid: number;
   invalid: number;
   today: number;
+  revenue: number;
+  todayRevenue: number;
 }
 
 const Dashboard = () => {
@@ -74,7 +76,7 @@ const Dashboard = () => {
         .from('checkins')
         .select(`
           *,
-          events!inner(id, producer_id)
+          events!inner(id, producer_id, price)
         `);
 
       // Se for producer, filtrar apenas validações de seus eventos
@@ -141,7 +143,7 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
           <Card className="shadow-soft">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">

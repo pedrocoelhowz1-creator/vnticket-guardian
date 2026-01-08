@@ -8,9 +8,45 @@ interface AdminRouteProps {
 }
 
 export function AdminRoute({ children }: AdminRouteProps) {
-  const { isAdmin, loading, session } = useAdmin();
+  const [hasAccess, setHasAccess] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+
+        if (!currentSession?.user) {
+          setHasAccess(false);
+          setLoading(false);
+          return;
+        }
+
+        const { checkIsAdminOrProducer } = await import('@/lib/adminCheck');
+        const access = await checkIsAdminOrProducer(currentSession.user.id);
+        setHasAccess(access);
+      } catch (error) {
+        console.error('Error in AdminRoute:', error);
+        setHasAccess(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAccess();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      checkAccess();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate, toast]);
 
   useEffect(() => {
     if (!loading) {
@@ -22,17 +58,17 @@ export function AdminRoute({ children }: AdminRouteProps) {
           description: "Você precisa fazer login para acessar esta página",
           variant: "destructive",
         });
-      } else if (!isAdmin) {
-        // Está autenticado mas não é admin
+      } else if (!hasAccess) {
+        // Está autenticado mas não tem acesso
         navigate('/auth');
         toast({
           title: "Acesso negado",
-          description: "Apenas administradores podem acessar este sistema",
+          description: "Apenas administradores e produtores podem acessar este sistema",
           variant: "destructive",
         });
       }
     }
-  }, [isAdmin, loading, session, navigate, toast]);
+  }, [hasAccess, loading, session, navigate, toast]);
 
   if (loading) {
     return (
@@ -45,7 +81,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
     );
   }
 
-  if (!session || !isAdmin) {
+  if (!session || !hasAccess) {
     return null; // Redirecionamento em andamento
   }
 
