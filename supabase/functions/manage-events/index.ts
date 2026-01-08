@@ -65,18 +65,18 @@ Deno.serve(async (req) => {
     
     console.log('User authenticated:', user.id);
 
-    // Verificar se o usuário tem role de admin
+    // Verificar se o usuário tem role de admin ou producer
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .eq('role', 'admin')
+      .in('role', ['admin', 'producer'])
       .maybeSingle();
 
     if (roleError || !roleData) {
-      console.error('User is not admin:', user.id);
-      return new Response(JSON.stringify({ 
-        error: 'Acesso negado. Apenas administradores podem acessar este sistema.',
+      console.error('User is not admin or producer:', user.id);
+      return new Response(JSON.stringify({
+        error: 'Acesso negado. Apenas administradores e produtores podem acessar este sistema.',
         events: []
       }), {
         status: 403,
@@ -84,7 +84,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log('User is admin, proceeding...');
+    const isAdmin = roleData.role === 'admin';
+    const isProducer = roleData.role === 'producer';
+    console.log('User role:', roleData.role, 'isAdmin:', isAdmin, 'isProducer:', isProducer);
 
     // Usa o mesmo Supabase (Guardian e VN Ticket são o mesmo projeto)
     // Não precisa conectar a outro banco, usa o mesmo cliente
@@ -110,11 +112,19 @@ Deno.serve(async (req) => {
         // List events
         console.log('Fetching events from Supabase...');
         console.log('Using same Supabase client (Guardian = VN Ticket)');
-        
-        const { data, error } = await vnTicket
+        console.log('User role - isAdmin:', isAdmin, 'isProducer:', isProducer);
+
+        let query = vnTicket
           .from('events')
-          .select('*')
-          .order('date', { ascending: true });
+          .select('*');
+
+        // Se for producer, filtrar apenas seus eventos
+        if (isProducer) {
+          query = query.eq('producer_id', user.id);
+          console.log('Filtering events for producer:', user.id);
+        }
+
+        const { data, error } = await query.order('date', { ascending: true });
 
         if (error) {
           console.error('Error fetching events:', error);
@@ -246,12 +256,18 @@ Deno.serve(async (req) => {
               // Se for erro de tabela não encontrada, tenta sem order
               if (error.code === 'PGRST116' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
                 console.log('Trying without order by...');
-                const { data: dataNoOrder, error: errorNoOrder } = await vnTicket
+                let queryNoOrder = vnTicket
                   .from('events')
                   .select('*');
-                
+
+                if (isProducer) {
+                  queryNoOrder = queryNoOrder.eq('producer_id', user.id);
+                }
+
+                const { data: dataNoOrder, error: errorNoOrder } = await queryNoOrder;
+
                 if (errorNoOrder) {
-                  return new Response(JSON.stringify({ 
+                  return new Response(JSON.stringify({
                     error: `Tabela 'events' não encontrada no banco VN Ticket. Verifique se a tabela existe.`,
                     events: []
                   }), {
@@ -259,10 +275,10 @@ Deno.serve(async (req) => {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                   });
                 }
-                
+
                 console.log(`Found ${dataNoOrder?.length || 0} events (without order)`);
-                return new Response(JSON.stringify({ 
-                  events: dataNoOrder || [] 
+                return new Response(JSON.stringify({
+                  events: dataNoOrder || []
                 }), {
                   status: 200,
                   headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -298,7 +314,11 @@ Deno.serve(async (req) => {
                 price: event.price || 0,
                 available_tickets: event.available_tickets || 0,
                 image_url: event.image_url || null,
+                image_fit: event.image_fit || 'contain',
                 category: event.category || null,
+                has_fee: event.has_fee || false,
+                fee_amount: event.fee_amount || 0,
+                producer_id: event.producer_id || null,
                 created_at: event.created_at || null,
                 updated_at: event.updated_at || null
               }));
@@ -345,6 +365,16 @@ Deno.serve(async (req) => {
         }
         
         if (normalizedAction === 'create' || action === 'create') {
+          // Apenas admins podem criar eventos
+          if (!isAdmin) {
+            return new Response(JSON.stringify({
+              error: 'Acesso negado. Apenas administradores podem criar eventos.'
+            }), {
+              status: 403,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
           const { data, error } = await vnTicket
             .from('events')
             .insert([{
@@ -356,6 +386,7 @@ Deno.serve(async (req) => {
               available_tickets: body.available_tickets,
               image_url: body.image_url,
               category: body.category,
+              producer_id: body.producer_id || null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }])
@@ -377,7 +408,7 @@ Deno.serve(async (req) => {
           const cleanedUpdates: any = {
             updated_at: new Date().toISOString()
           };
-          
+
           if (updates.title !== undefined) cleanedUpdates.title = updates.title || '';
           if (updates.description !== undefined) cleanedUpdates.description = updates.description || null;
           if (updates.date !== undefined) cleanedUpdates.date = updates.date || null;
@@ -386,6 +417,8 @@ Deno.serve(async (req) => {
           if (updates.available_tickets !== undefined) cleanedUpdates.available_tickets = updates.available_tickets || 0;
           if (updates.image_url !== undefined) cleanedUpdates.image_url = updates.image_url || null;
           if (updates.category !== undefined) cleanedUpdates.category = updates.category || null;
+          if (updates.has_fee !== undefined) cleanedUpdates.has_fee = updates.has_fee || false;
+          if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = updates.fee_amount || 0;
           
           console.log('Updating event:', id);
           console.log('Updates:', cleanedUpdates);
@@ -410,8 +443,18 @@ Deno.serve(async (req) => {
         }
 
         if (normalizedAction === 'delete' || action === 'delete') {
+          // Apenas admins podem excluir eventos
+          if (!isAdmin) {
+            return new Response(JSON.stringify({
+              error: 'Acesso negado. Apenas administradores podem excluir eventos.'
+            }), {
+              status: 403,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+
           const { id } = body;
-          
+
           const { error } = await vnTicket
             .from('events')
             .delete()
