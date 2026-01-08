@@ -418,6 +418,8 @@ const Events = () => {
       const { checkIsProducer } = await import('@/lib/adminCheck');
       const isProducer = await checkIsProducer(session?.user?.id || '');
 
+      const producerId = isAdmin ? (formData.producer_id === "none" ? null : (formData.producer_id || null)) : (isProducer ? session?.user?.id : null);
+
       const eventData = {
         title: formData.title,
         description: formData.description || null,
@@ -427,7 +429,7 @@ const Events = () => {
         available_tickets: parseInt(formData.available_tickets),
         image_url: imageUrl || null,
         category: formData.category || null,
-        producer_id: isAdmin ? (formData.producer_id || null) : (isProducer ? session?.user?.id : null),
+        producer_id: producerId,
         has_fee: formData.has_fee,
         fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) : 0
       };
@@ -612,17 +614,17 @@ const Events = () => {
                     <Label htmlFor="producer">Produtor</Label>
                     <Select value={formData.producer_id} onValueChange={(value) => setFormData({ ...formData, producer_id: value })}>
                       <SelectTrigger className="bg-secondary/50 border-border/50">
-                        <SelectValue placeholder="Selecione um produtor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Nenhum (evento geral)</SelectItem>
-                        {producers.length === 0 && (
-                          <SelectItem value="" disabled>Nenhum produtor cadastrado</SelectItem>
-                        )}
-                        {producers.map(producer => (
-                          <SelectItem key={producer.id} value={producer.id}>{producer.email}</SelectItem>
-                        ))}
-                      </SelectContent>
+                          <SelectValue placeholder="Selecione um produtor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhum (evento geral)</SelectItem>
+                          {producers.length === 0 && (
+                            <SelectItem value="none" disabled>Nenhum produtor cadastrado</SelectItem>
+                          )}
+                          {producers.map(producer => (
+                            <SelectItem key={producer.id} value={producer.id}>{producer.email}</SelectItem>
+                          ))}
+                        </SelectContent>
                     </Select>
                   </div>
                 )}
