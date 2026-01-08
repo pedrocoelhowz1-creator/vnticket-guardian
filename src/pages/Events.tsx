@@ -583,10 +583,9 @@ const Events = () => {
                   </div>
                 </div>
 
-                {/* Temporarily always show for debugging */}
-                {(isAdmin || true) && (
+                {isAdmin && (
                   <div className="space-y-2">
-                    <Label htmlFor="producer">Produtor {isAdmin ? '(Admin)' : '(Debug)'}</Label>
+                    <Label htmlFor="producer">Produtor</Label>
                     <Select value={formData.producer_id} onValueChange={(value) => setFormData({ ...formData, producer_id: value })}>
                       <SelectTrigger className="bg-secondary/50 border-border/50">
                         <SelectValue placeholder="Selecione um produtor" />
@@ -601,7 +600,6 @@ const Events = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    {console.log('Rendering producer field, isAdmin:', isAdmin, 'producers:', producers)}
                   </div>
                 )}
 
