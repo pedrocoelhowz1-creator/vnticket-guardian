@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Calendar, MapPin, DollarSign, Ticket, ArrowLeft, Image, Search, Upload, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { ptBR } from "date-fns/locale";
 import type { Session } from "@supabase/supabase-js";
 import logo from "@/assets/logo.png";
@@ -528,6 +529,7 @@ const Events = () => {
   }
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-background circuit-bg">
       {/* Header */}
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
@@ -971,6 +973,7 @@ const Events = () => {
         )}
       </main>
     </div>
+    </ErrorBoundary>
   );
 };
 
