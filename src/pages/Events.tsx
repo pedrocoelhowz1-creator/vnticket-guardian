@@ -39,6 +39,7 @@ interface EventFormData {
   available_tickets: string;
   image_url: string;
   category: string;
+  producer_id: string;
 }
 
 const initialFormData: EventFormData = {
@@ -49,7 +50,8 @@ const initialFormData: EventFormData = {
   price: "",
   available_tickets: "",
   image_url: "",
-  category: ""
+  category: "",
+  producer_id: ""
 };
 
 const CATEGORIES = [
@@ -92,25 +94,23 @@ const Events = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkAccess = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
-      
+
       if (!currentSession?.user) {
         navigate("/auth");
         return;
       }
 
-      const { checkIsAdmin } = await import('@/lib/adminCheck');
-      const isAdmin = await checkIsAdmin(
-        currentSession.user.id,
-        currentSession.user.email || ''
-      );
+      const { checkIsAdmin, checkIsAdminOrProducer } = await import('@/lib/adminCheck');
+      const hasAccess = await checkIsAdminOrProducer(currentSession.user.id);
+      const adminStatus = await checkIsAdmin(currentSession.user.id, currentSession.user.email || '');
 
-      if (!isAdmin) {
+      if (!hasAccess) {
         toast({
           title: "Acesso negado",
-          description: "Apenas administradores podem acessar este sistema",
+          description: "Apenas administradores e produtores podem acessar este sistema",
           variant: "destructive",
         });
         await supabase.auth.signOut();
@@ -118,17 +118,21 @@ const Events = () => {
         return;
       }
 
+      setIsAdmin(adminStatus);
       loadEvents();
+      if (adminStatus) {
+        loadProducers();
+      }
     };
 
-    checkAdmin();
+    checkAccess();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (!session) {
         navigate("/auth");
       } else {
-        checkAdmin();
+        checkAccess();
       }
     });
 
@@ -139,16 +143,16 @@ const Events = () => {
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session?.access_token) {
         throw new Error('Sessão não encontrada. Faça login novamente.');
       }
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co';
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_9MkvN2POLK3J1Qh4GvfIHw_22oBYzGw';
-      
+
       const functionUrl = `${supabaseUrl}/functions/v1/manage-events?action=list`;
-      
+
       const res = await fetch(functionUrl, {
         method: 'POST',
         headers: {
@@ -166,7 +170,7 @@ const Events = () => {
       } catch (parseError) {
         throw new Error('Resposta inválida do servidor');
       }
-      
+
       if (data && data.events && Array.isArray(data.events)) {
         setEvents(data.events);
       } else if (Array.isArray(data)) {
@@ -190,6 +194,39 @@ const Events = () => {
     }
   };
 
+  const loadProducers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select(`
+          user_id,
+          users:user_id (
+            id,
+            email
+          )
+        `)
+        .eq('role', 'producer');
+
+      if (error) throw error;
+
+      const producerList = data
+        .filter(item => item.users)
+        .map(item => ({
+          id: (item.users as any).id,
+          email: (item.users as any).email
+        }));
+
+      setProducers(producerList);
+    } catch (error: any) {
+      console.error('Error loading producers:', error);
+      toast({
+        title: "Erro ao carregar produtores",
+        description: error.message || "Tente novamente mais tarde",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleOpenDialog = (event?: Event) => {
     if (event) {
       setEditingEvent(event);
@@ -201,7 +238,8 @@ const Events = () => {
         price: String(event.price),
         available_tickets: String(event.available_tickets),
         image_url: event.image_url || "",
-        category: event.category || ""
+        category: event.category || "",
+        producer_id: (event as any).producer_id || ""
       });
       setImagePreview(event.image_url || null);
       setUseImageUpload(false);
@@ -364,7 +402,7 @@ const Events = () => {
         available_tickets: parseInt(formData.available_tickets),
         image_url: imageUrl || null,
         category: formData.category || null,
-        ...(isProducer && { producer_id: session?.user?.id })
+        producer_id: isAdmin ? (formData.producer_id || null) : (isProducer ? session?.user?.id : null)
       };
 
       const action = editingEvent ? 'update' : 'create';
@@ -482,16 +520,17 @@ const Events = () => {
               <h1 className="text-lg font-bold gradient-text">Eventos</h1>
             </div>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                onClick={() => handleOpenDialog()}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Novo
-              </Button>
-            </DialogTrigger>
+          {isAdmin && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  onClick={() => handleOpenDialog()}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/50">
               <DialogHeader>
                 <DialogTitle className="gradient-text">{editingEvent ? "Editar Evento" : "Novo Evento"}</DialogTitle>
@@ -538,6 +577,22 @@ const Events = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="producer">Produtor</Label>
+                      <Select value={formData.producer_id} onValueChange={(value) => setFormData({ ...formData, producer_id: value })}>
+                        <SelectTrigger className="bg-secondary/50 border-border/50">
+                          <SelectValue placeholder="Selecione um produtor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Nenhum (evento geral)</SelectItem>
+                          {producers.map(producer => (
+                            <SelectItem key={producer.id} value={producer.id}>{producer.email}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -805,41 +860,43 @@ const Events = () => {
                     </p>
                   </div>
 
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 h-9 border-border/50 hover:bg-secondary/50"
-                      onClick={() => handleOpenDialog(event)}
-                    >
-                      <Pencil className="mr-1 h-3 w-3" />
-                      Editar
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="h-9 w-9 p-0">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="bg-card border-border/50">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja remover "{event.title}"? Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="border-border/50">Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(event)}
-                            className="bg-destructive hover:bg-destructive/90"
-                          >
-                            Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-9 border-border/50 hover:bg-secondary/50"
+                        onClick={() => handleOpenDialog(event)}
+                      >
+                        <Pencil className="mr-1 h-3 w-3" />
+                        Editar
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" className="h-9 w-9 p-0">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-card border-border/50">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja remover "{event.title}"? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="border-border/50">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(event)}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
