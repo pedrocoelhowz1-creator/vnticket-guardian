@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, CheckCircle, XCircle, Loader2, ScanLine } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import type { Session } from "@supabase/supabase-js";
-import logo from "@/assets/logo.png";
+import logo from "/placeholder.svg";
 
 interface ValidationResult {
   status: 'valid' | 'invalid' | 'error';
