@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
-import logo from "@/assets/logo.png";
-import { checkIsAdmin } from "@/lib/adminCheck";
+import logo from "/placeholder.svg";
+import { checkIsAdmin, checkIsAdminOrProducer } from "@/lib/adminCheck";
 
 const authSchema = z.object({
   email: z.string().email({ message: "Email inválido" }),
@@ -83,14 +83,14 @@ const Auth = () => {
           });
         }
       } else if (authData.user) {
-        // Verificar se o usuário é admin usando função centralizada
-        const isAdmin = await checkIsAdmin(authData.user.id, authData.user.email || '');
+        // Verificar se o usuário é admin ou produtor usando função centralizada
+        const isAuthorized = await checkIsAdminOrProducer(authData.user.id);
 
-        if (!isAdmin) {
+        if (!isAuthorized) {
           await supabase.auth.signOut();
           toast({
             title: "Acesso negado",
-            description: "Apenas administradores podem acessar este sistema",
+            description: "Apenas administradores e produtores podem acessar este sistema",
             variant: "destructive",
           });
         } else {
