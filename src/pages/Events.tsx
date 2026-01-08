@@ -121,6 +121,7 @@ const Events = () => {
       }
 
       setIsAdmin(adminStatus);
+      console.log('User is admin:', adminStatus);
       loadEvents();
       if (adminStatus) {
         loadProducers();
@@ -219,6 +220,7 @@ const Events = () => {
         }));
 
       setProducers(producerList);
+      console.log('Loaded producers:', producerList);
     } catch (error: any) {
       console.error('Error loading producers:', error);
       toast({
@@ -581,20 +583,25 @@ const Events = () => {
                   </div>
                 </div>
 
-                {isAdmin && (
+                {/* Temporarily always show for debugging */}
+                {(isAdmin || true) && (
                   <div className="space-y-2">
-                    <Label htmlFor="producer">Produtor</Label>
+                    <Label htmlFor="producer">Produtor {isAdmin ? '(Admin)' : '(Debug)'}</Label>
                     <Select value={formData.producer_id} onValueChange={(value) => setFormData({ ...formData, producer_id: value })}>
                       <SelectTrigger className="bg-secondary/50 border-border/50">
                         <SelectValue placeholder="Selecione um produtor" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">Nenhum (evento geral)</SelectItem>
+                        {producers.length === 0 && (
+                          <SelectItem value="" disabled>Nenhum produtor cadastrado</SelectItem>
+                        )}
                         {producers.map(producer => (
                           <SelectItem key={producer.id} value={producer.id}>{producer.email}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {console.log('Rendering producer field, isAdmin:', isAdmin, 'producers:', producers)}
                   </div>
                 )}
 
