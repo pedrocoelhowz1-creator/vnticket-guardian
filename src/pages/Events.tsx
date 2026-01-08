@@ -25,7 +25,10 @@ interface Event {
   price: number;
   available_tickets: number;
   image_url: string | null;
+  image_fit: string | null;
   category: string | null;
+  has_fee: boolean;
+  fee_amount: number;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -38,8 +41,11 @@ interface EventFormData {
   price: string;
   available_tickets: string;
   image_url: string;
+  image_fit: string;
   category: string;
   producer_id: string;
+  has_fee: boolean;
+  fee_amount: string;
 }
 
 const initialFormData: EventFormData = {
@@ -50,6 +56,7 @@ const initialFormData: EventFormData = {
   price: "",
   available_tickets: "",
   image_url: "",
+  image_fit: "contain",
   category: "",
   producer_id: ""
 };
@@ -242,8 +249,11 @@ const Events = () => {
         price: String(event.price),
         available_tickets: String(event.available_tickets),
         image_url: event.image_url || "",
+        image_fit: event.image_fit || "contain",
         category: event.category || "",
-        producer_id: (event as any).producer_id || ""
+        producer_id: (event as any).producer_id || "",
+        has_fee: event.has_fee || false,
+        fee_amount: String(event.fee_amount || "")
       });
       setImagePreview(event.image_url || null);
       setUseImageUpload(false);
@@ -654,6 +664,37 @@ const Events = () => {
                   </div>
                 </div>
 
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="has_fee"
+                      checked={formData.has_fee}
+                      onChange={(e) => setFormData({ ...formData, has_fee: e.target.checked })}
+                      className="rounded border-border/50"
+                    />
+                    <Label htmlFor="has_fee">Adicionar taxa de serviço</Label>
+                  </div>
+
+                  {formData.has_fee && (
+                    <div className="space-y-2">
+                      <Label htmlFor="fee_amount">Valor da taxa (R$) *</Label>
+                      <Input
+                        id="fee_amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="1000"
+                        placeholder="5.00"
+                        value={formData.fee_amount}
+                        onChange={(e) => setFormData({ ...formData, fee_amount: e.target.value })}
+                        required={formData.has_fee}
+                        className="bg-secondary/50 border-border/50 focus:border-primary"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>Imagem do Evento</Label>
                   <div className="flex gap-2 mb-2">
@@ -727,7 +768,7 @@ const Events = () => {
                           <img
                             src={formData.image_url}
                             alt="Preview"
-                            className="w-full h-40 object-contain"
+                            className={`w-full h-40 object-${formData.image_fit || 'contain'}`}
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                           />
                         </div>
@@ -748,20 +789,25 @@ const Events = () => {
                     className="bg-secondary/50 border-border/50 focus:border-primary resize-none"
                   />
                 </div>
-
-                <DialogFooter className="gap-2">
-                  <Button type="button" variant="outline" onClick={handleCloseDialog} className="border-border/50">
-                    Cancelar
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={saving || uploadingImage}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    {uploadingImage ? "Enviando..." : saving ? "Salvando..." : editingEvent ? "Atualizar" : "Criar"}
-                  </Button>
-                </DialogFooter>
               </form>
+
+              <DialogFooter className="gap-2">
+                <Button type="button" variant="outline" onClick={handleCloseDialog} className="border-border/50">
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={saving || uploadingImage}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget.form;
+                    if (form) form.requestSubmit();
+                  }}
+                >
+                  {uploadingImage ? "Enviando..." : saving ? "Salvando..." : editingEvent ? "Atualizar" : "Criar"}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -821,7 +867,7 @@ const Events = () => {
                     <img
                       src={event.image_url}
                       alt={event.title}
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-${event.image_fit || 'contain'}`}
                       onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
                     />
                   </div>
