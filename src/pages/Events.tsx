@@ -568,7 +568,7 @@ const Events = () => {
                   {editingEvent ? "Atualize as informações do evento" : "Preencha as informações do novo evento"}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form id="event-form" onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">Título *</Label>
                   <Input
@@ -813,13 +813,9 @@ const Events = () => {
                 </Button>
                 <Button
                   type="submit"
+                  form="event-form"
                   disabled={saving || uploadingImage}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const form = e.currentTarget.form;
-                    if (form) form.requestSubmit();
-                  }}
                 >
                   {uploadingImage ? "Enviando..." : saving ? "Salvando..." : editingEvent ? "Atualizar" : "Criar"}
                 </Button>
