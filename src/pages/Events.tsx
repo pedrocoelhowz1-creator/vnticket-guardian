@@ -105,6 +105,12 @@ const Events = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const formatEventDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "--/--/--";
+    return format(d, "dd/MM/yy 'às' HH:mm", { locale: ptBR });
+  };
+
   useEffect(() => {
     const checkAccess = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -897,7 +903,7 @@ const Events = () => {
                   <div className="space-y-1.5 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-3.5 w-3.5 text-primary" />
-                      <span>{format(new Date(event.date), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}</span>
+                      <span>{formatEventDate(event.date)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-3.5 w-3.5 text-primary" />
