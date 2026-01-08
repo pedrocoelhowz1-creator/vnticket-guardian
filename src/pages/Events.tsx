@@ -90,6 +90,8 @@ const Events = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [useImageUpload, setUseImageUpload] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [producers, setProducers] = useState<{id: string, email: string}[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -577,23 +579,24 @@ const Events = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  {isAdmin && (
-                    <div className="space-y-2">
-                      <Label htmlFor="producer">Produtor</Label>
-                      <Select value={formData.producer_id} onValueChange={(value) => setFormData({ ...formData, producer_id: value })}>
-                        <SelectTrigger className="bg-secondary/50 border-border/50">
-                          <SelectValue placeholder="Selecione um produtor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Nenhum (evento geral)</SelectItem>
-                          {producers.map(producer => (
-                            <SelectItem key={producer.id} value={producer.id}>{producer.email}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                 </div>
+
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="producer">Produtor</Label>
+                    <Select value={formData.producer_id} onValueChange={(value) => setFormData({ ...formData, producer_id: value })}>
+                      <SelectTrigger className="bg-secondary/50 border-border/50">
+                        <SelectValue placeholder="Selecione um produtor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Nenhum (evento geral)</SelectItem>
+                        {producers.map(producer => (
+                          <SelectItem key={producer.id} value={producer.id}>{producer.email}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="location">Local *</Label>
