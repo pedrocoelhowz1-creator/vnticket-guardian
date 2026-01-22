@@ -143,21 +143,21 @@ const ManualTicket = () => {
         generatedQrPayload = btoa(JSON.stringify(qrData));
       }
 
-      // Insert manual ticket
-      const { error } = await supabase.from('manual_tickets').insert({
-        id: ticketId,
-        event_id: formData.eventId,
-        buyer_name: formData.buyerName,
-        buyer_cpf: formData.buyerCpf.replace(/\D/g, ''),
-        buyer_phone: formData.buyerPhone.replace(/\D/g, ''),
-        payment_method: formData.paymentMethod,
-        sale_type: formData.isPresencial ? 'presencial' : 'online',
-        sale_origin: 'whatsapp',
-        qr_generated: !formData.isPresencial,
-        qr_payload: generatedQrPayload,
-        status: 'valid',
-        price: selectedEvent?.price || 0,
-        created_by: session.user.id
+      // Insert manual ticket using raw query to bypass schema cache
+      const { error } = await supabase.rpc('insert_manual_ticket' as any, {
+        p_id: ticketId,
+        p_event_id: formData.eventId,
+        p_buyer_name: formData.buyerName,
+        p_buyer_cpf: formData.buyerCpf.replace(/\D/g, ''),
+        p_buyer_phone: formData.buyerPhone.replace(/\D/g, ''),
+        p_payment_method: formData.paymentMethod,
+        p_sale_type: formData.isPresencial ? 'presencial' : 'online',
+        p_sale_origin: 'whatsapp',
+        p_qr_generated: !formData.isPresencial,
+        p_qr_payload: generatedQrPayload,
+        p_status: 'valid',
+        p_price: selectedEvent?.price || 0,
+        p_created_by: session.user.id
       });
 
       if (error) throw error;
