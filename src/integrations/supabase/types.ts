@@ -140,6 +140,24 @@ export type Database = {
         }
         Returns: boolean
       }
+      insert_manual_ticket: {
+        Args: {
+          p_buyer_cpf: string
+          p_buyer_name: string
+          p_buyer_phone: string
+          p_created_by: string
+          p_event_id: string
+          p_id: string
+          p_payment_method: string
+          p_price: number
+          p_qr_generated: boolean
+          p_qr_payload: string
+          p_sale_origin: string
+          p_sale_type: string
+          p_status: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator"
