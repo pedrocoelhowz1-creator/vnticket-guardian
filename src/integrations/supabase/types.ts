@@ -53,6 +53,60 @@ export type Database = {
         }
         Relationships: []
       }
+      manual_tickets: {
+        Row: {
+          buyer_cpf: string
+          buyer_name: string
+          buyer_phone: string
+          created_at: string
+          created_by: string
+          event_id: string
+          id: string
+          payment_method: string
+          price: number
+          qr_generated: boolean
+          qr_payload: string | null
+          sale_origin: string
+          sale_type: string
+          status: string
+          used_at: string | null
+        }
+        Insert: {
+          buyer_cpf: string
+          buyer_name: string
+          buyer_phone: string
+          created_at?: string
+          created_by: string
+          event_id: string
+          id?: string
+          payment_method: string
+          price?: number
+          qr_generated?: boolean
+          qr_payload?: string | null
+          sale_origin?: string
+          sale_type?: string
+          status?: string
+          used_at?: string | null
+        }
+        Update: {
+          buyer_cpf?: string
+          buyer_name?: string
+          buyer_phone?: string
+          created_at?: string
+          created_by?: string
+          event_id?: string
+          id?: string
+          payment_method?: string
+          price?: number
+          qr_generated?: boolean
+          qr_payload?: string | null
+          sale_origin?: string
+          sale_type?: string
+          status?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

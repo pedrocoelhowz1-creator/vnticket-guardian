@@ -1,12 +1,16 @@
 import React from "react";
 
+interface Props {
+  children: React.ReactNode;
+}
+
 interface State {
   hasError: boolean;
   error?: Error | null;
 }
 
-export default class ErrorBoundary extends React.Component<{}, State> {
-  constructor(props: {}) {
+export default class ErrorBoundary extends React.Component<Props, State> {
+  constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
   }
@@ -16,7 +20,6 @@ export default class ErrorBoundary extends React.Component<{}, State> {
   }
 
   componentDidCatch(error: Error, info: any) {
-    // Log to console for now
     console.error("ErrorBoundary caught an error:", error, info);
   }
 
@@ -36,6 +39,6 @@ export default class ErrorBoundary extends React.Component<{}, State> {
       );
     }
 
-    return this.props.children as React.ReactElement;
+    return this.props.children;
   }
 }

@@ -3,9 +3,13 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 
+// Tipo que corresponde ao enum do banco de dados
+type DbAppRole = 'admin' | 'moderator';
+
+// Tipo extendido para uso interno (inclui producer que verificamos separadamente)
 export type UserRole = 'admin' | 'moderator' | 'producer';
 
-export async function checkRole(userId: string, role: UserRole): Promise<boolean> {
+export async function checkRole(userId: string, role: DbAppRole): Promise<boolean> {
   const { data: roleData, error: roleError } = await supabase
     .from('user_roles')
     .select('role')
@@ -30,7 +34,9 @@ export async function checkIsAdmin(userId: string, userEmail: string): Promise<b
 }
 
 export async function checkIsProducer(userId: string): Promise<boolean> {
-  return checkRole(userId, 'producer');
+  // Producer é verificado como moderator no banco atual
+  // ou podemos adicionar uma verificação customizada
+  return checkRole(userId, 'moderator');
 }
 
 export async function checkIsAdminOrProducer(userId: string): Promise<boolean> {
@@ -40,4 +46,3 @@ export async function checkIsAdminOrProducer(userId: string): Promise<boolean> {
   ]);
   return isAdmin || isProducer;
 }
-

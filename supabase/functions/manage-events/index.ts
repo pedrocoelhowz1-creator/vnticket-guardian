@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
               const queryResult = await vnTicket
                 .from('events')
                 .select('*')
-                .order('date', { ascending: true }, { nullsFirst: false });
+                .order('date', { ascending: true });
               
               data = queryResult.data;
               error = queryResult.error;
