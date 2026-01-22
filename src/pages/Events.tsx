@@ -217,10 +217,11 @@ const Events = () => {
   const loadProducers = async () => {
     try {
       // Get producer roles
+      // Get moderator roles (producers are stored as moderators in the current schema)
       const { data: producerRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id')
-        .eq('role', 'producer');
+        .eq('role', 'moderator');
 
       if (rolesError) {
         console.error('Error loading producer roles:', rolesError);

@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAdmin } from '@/hooks/useAdmin';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import type { Session } from '@supabase/supabase-js';
 
 interface AdminRouteProps {
   children: React.ReactNode;
@@ -51,7 +52,6 @@ export function AdminRoute({ children }: AdminRouteProps) {
   useEffect(() => {
     if (!loading) {
       if (!session) {
-        // Não está autenticado
         navigate('/auth');
         toast({
           title: "Acesso negado",
@@ -59,7 +59,6 @@ export function AdminRoute({ children }: AdminRouteProps) {
           variant: "destructive",
         });
       } else if (!hasAccess) {
-        // Está autenticado mas não tem acesso
         navigate('/auth');
         toast({
           title: "Acesso negado",
@@ -82,9 +81,8 @@ export function AdminRoute({ children }: AdminRouteProps) {
   }
 
   if (!session || !hasAccess) {
-    return null; // Redirecionamento em andamento
+    return null;
   }
 
   return <>{children}</>;
 }
-
