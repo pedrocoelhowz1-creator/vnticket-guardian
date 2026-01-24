@@ -1,0 +1,193 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import { z } from "zod";
+import logo from "/placeholder.svg";
+import { checkIsAdmin, checkIsAdminOrProducer } from "@/lib/adminCheck";
+
+const authSchema = z.object({
+  email: z.string().email({ message: "Email inválido" }),
+  password: z.string().min(6, { message: "Senha deve ter no mínimo 6 caracteres" }),
+});
+
+const Auth = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate("/dashboard");
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && event === 'SIGNED_IN') {
+        navigate("/dashboard");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    console.log('=== INÍCIO DO LOGIN ===');
+    console.log('Email:', email);
+
+    try {
+      const validation = authSchema.safeParse({ email, password });
+      
+      if (!validation.success) {
+        console.log('Erro de validação:', validation.error);
+        toast({
+          title: "Erro de validação",
+          description: validation.error.errors[0].message,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log('Tentando fazer login...');
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      console.log('Resultado do login:', { hasUser: !!authData?.user, error });
+
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Erro no login",
+            description: "Email ou senha incorretos",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro no login",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      } else if (authData.user) {
+        // Verificar se o usuário é admin ou produtor usando função centralizada
+        const isAuthorized = await checkIsAdminOrProducer(authData.user.id);
+
+        if (!isAuthorized) {
+          await supabase.auth.signOut();
+          toast({
+            title: "Acesso negado",
+            description: "Apenas administradores e produtores podem acessar este sistema",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Login realizado!",
+            description: "Bem-vindo de volta",
+          });
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background circuit-bg grid-pattern p-4 relative overflow-hidden">
+      {/* Background decorations */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+      </div>
+      
+      <div className="w-full max-w-md relative z-10 animate-fade-in">
+        <Card className="neon-border bg-card/80 backdrop-blur-xl">
+          <CardHeader className="space-y-6 text-center pb-2">
+            <div className="mx-auto w-24 h-24 relative animate-float">
+              <img 
+                src={logo} 
+                alt="VN TICKET" 
+                className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(0,200,255,0.5)]"
+              />
+            </div>
+            <div className="space-y-1">
+              <CardTitle className="text-3xl font-bold gradient-text tracking-tight">
+                VN TICKET
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Painel Administrativo
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <form onSubmit={handleAuth} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium text-foreground/80">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@vnticket.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="h-12 bg-secondary/50 border-border/50 focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium text-foreground/80">
+                  Senha
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="h-12 bg-secondary/50 border-border/50 focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50"
+                />
+              </div>
+              <Button 
+                type="submit" 
+                className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow hover:shadow-neon transition-all duration-300" 
+                disabled={loading}
+              >
+                {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                Entrar
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+        
+        <p className="text-center text-xs text-muted-foreground/60 mt-6">
+          Sistema de Validação de Ingressos
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default Auth;
