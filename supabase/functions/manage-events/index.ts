@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
               const queryResult = await vnTicket
                 .from('events')
                 .select('*')
-                .order('date', { ascending: true });
+                .order('date', { ascending: true }, { nullsFirst: false });
               
               data = queryResult.data;
               error = queryResult.error;
@@ -387,6 +387,10 @@ Deno.serve(async (req) => {
               image_url: body.image_url,
               category: body.category,
               producer_id: body.producer_id || null,
+              has_fee: body.has_fee || false,
+              fee_amount: body.fee_amount || 0,
+              is_available: body.is_available !== undefined ? body.is_available : true,
+              unavailability_reason: body.unavailability_reason || null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }])
@@ -419,6 +423,8 @@ Deno.serve(async (req) => {
           if (updates.category !== undefined) cleanedUpdates.category = updates.category || null;
           if (updates.has_fee !== undefined) cleanedUpdates.has_fee = updates.has_fee || false;
           if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = updates.fee_amount || 0;
+          if (updates.is_available !== undefined) cleanedUpdates.is_available = updates.is_available !== undefined ? updates.is_available : true;
+          if (updates.unavailability_reason !== undefined) cleanedUpdates.unavailability_reason = updates.unavailability_reason || null;
           
           console.log('Updating event:', id);
           console.log('Updates:', cleanedUpdates);

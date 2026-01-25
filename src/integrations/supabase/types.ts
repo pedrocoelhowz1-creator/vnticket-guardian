@@ -53,60 +53,6 @@ export type Database = {
         }
         Relationships: []
       }
-      manual_tickets: {
-        Row: {
-          buyer_cpf: string
-          buyer_name: string
-          buyer_phone: string
-          created_at: string
-          created_by: string
-          event_id: string
-          id: string
-          payment_method: string
-          price: number
-          qr_generated: boolean
-          qr_payload: string | null
-          sale_origin: string
-          sale_type: string
-          status: string
-          used_at: string | null
-        }
-        Insert: {
-          buyer_cpf: string
-          buyer_name: string
-          buyer_phone: string
-          created_at?: string
-          created_by: string
-          event_id: string
-          id?: string
-          payment_method: string
-          price?: number
-          qr_generated?: boolean
-          qr_payload?: string | null
-          sale_origin?: string
-          sale_type?: string
-          status?: string
-          used_at?: string | null
-        }
-        Update: {
-          buyer_cpf?: string
-          buyer_name?: string
-          buyer_phone?: string
-          created_at?: string
-          created_by?: string
-          event_id?: string
-          id?: string
-          payment_method?: string
-          price?: number
-          qr_generated?: boolean
-          qr_payload?: string | null
-          sale_origin?: string
-          sale_type?: string
-          status?: string
-          used_at?: string | null
-        }
-        Relationships: []
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -140,23 +86,11 @@ export type Database = {
         }
         Returns: boolean
       }
-      insert_manual_ticket: {
+      check_admin_by_email: {
         Args: {
-          p_buyer_cpf: string
-          p_buyer_name: string
-          p_buyer_phone: string
-          p_created_by: string
-          p_event_id: string
-          p_id: string
-          p_payment_method: string
-          p_price: number
-          p_qr_generated: boolean
-          p_qr_payload: string
-          p_sale_origin: string
-          p_sale_type: string
-          p_status: string
+          user_email: string
         }
-        Returns: undefined
+        Returns: boolean
       }
     }
     Enums: {

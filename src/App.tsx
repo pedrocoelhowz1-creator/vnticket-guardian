@@ -10,6 +10,7 @@ import Scanner from "./pages/Scanner";
 import History from "./pages/History";
 import Events from "./pages/Events";
 import ManualTicket from "./pages/ManualTicket";
+import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,7 +29,8 @@ const App = () => (
           <Route path="/history" element={<History />} />
           <Route path="/events" element={<Events />} />
           <Route path="/manual-ticket" element={<ManualTicket />} />
-          <Route path="/sales" element={<Dashboard />} />
+          <Route path="/about" element={<About />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

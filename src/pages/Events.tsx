@@ -31,6 +31,8 @@ interface Event {
   has_fee: boolean;
   fee_amount: number;
   producer_id: string | null;
+  is_available: boolean;
+  unavailability_reason: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -48,6 +50,8 @@ interface EventFormData {
   producer_id: string;
   has_fee: boolean;
   fee_amount: string;
+  is_available: boolean;
+  unavailability_reason: string;
 }
 
 const initialFormData: EventFormData = {
@@ -62,7 +66,9 @@ const initialFormData: EventFormData = {
   category: "",
   producer_id: "",
   has_fee: false,
-  fee_amount: ""
+  fee_amount: "",
+  is_available: true,
+  unavailability_reason: ""
 };
 
 const CATEGORIES = [
@@ -217,11 +223,10 @@ const Events = () => {
   const loadProducers = async () => {
     try {
       // Get producer roles
-      // Get moderator roles (producers are stored as moderators in the current schema)
       const { data: producerRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id')
-        .eq('role', 'moderator');
+        .eq('role', 'producer');
 
       if (rolesError) {
         console.error('Error loading producer roles:', rolesError);
@@ -265,7 +270,9 @@ const Events = () => {
         category: event.category || "",
         producer_id: (event as any).producer_id || "",
         has_fee: event.has_fee || false,
-        fee_amount: String(event.fee_amount || "")
+        fee_amount: String(event.fee_amount || ""),
+        is_available: event.is_available !== undefined ? event.is_available : true,
+        unavailability_reason: event.unavailability_reason || ""
       });
       setImagePreview(event.image_url || null);
       setUseImageUpload(false);
@@ -432,7 +439,9 @@ const Events = () => {
         category: formData.category || null,
         producer_id: producerId,
         has_fee: formData.has_fee,
-        fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) : 0
+        fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) : 0,
+        is_available: formData.is_available,
+        unavailability_reason: !formData.is_available ? formData.unavailability_reason : null
       };
 
       const action = editingEvent ? 'update' : 'create';
@@ -552,16 +561,25 @@ const Events = () => {
             </div>
           </div>
           {isAdmin && (
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  onClick={() => handleOpenDialog()}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Novo
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => navigate("/manual-ticket")}
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              >
+                <Ticket className="mr-2 h-4 w-4" />
+                Criar ingresso manual
+              </Button>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    onClick={() => handleOpenDialog()}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Novo
+                  </Button>
+                </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border/50">
               <DialogHeader>
                 <DialogTitle className="gradient-text">{editingEvent ? "Editar Evento" : "Novo Evento"}</DialogTitle>
@@ -712,6 +730,38 @@ const Events = () => {
                   )}
                 </div>
 
+                <div className="space-y-4 border-t border-border/30 pt-4">
+                  <h3 className="text-sm font-semibold">Disponibilidade do Evento</h3>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="is_available"
+                      checked={formData.is_available}
+                      onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
+                      className="rounded border-border/50"
+                    />
+                    <Label htmlFor="is_available">Evento disponível para compra</Label>
+                  </div>
+
+                  {!formData.is_available && (
+                    <div className="space-y-2">
+                      <Label htmlFor="unavailability_reason">Motivo da indisponibilidade</Label>
+                      <Textarea
+                        id="unavailability_reason"
+                        placeholder="Ex: Evento será prorrogado, aguarde novas datas..."
+                        value={formData.unavailability_reason}
+                        onChange={(e) => setFormData({ ...formData, unavailability_reason: e.target.value })}
+                        maxLength={500}
+                        rows={3}
+                        className="bg-secondary/50 border-border/50 focus:border-primary resize-none"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {formData.unavailability_reason.length}/500
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>Imagem do Evento</Label>
                   <div className="flex gap-2 mb-2">
@@ -823,6 +873,7 @@ const Events = () => {
               </DialogFooter>
             </DialogContent>
             </Dialog>
+            </div>
           )}
         </div>
       </header>
