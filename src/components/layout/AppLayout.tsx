@@ -43,7 +43,7 @@ const menuItems: MenuItem[] = [
   { icon: Info, label: "Sobre", path: "/about" },
 ];
 
-export function AppLayout({ children }: AppLayoutProps) {
+export default function AppLayout({ children }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
