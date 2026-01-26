@@ -442,12 +442,17 @@ Deno.serve(async (req) => {
             .select()
             .single();
 
+          console.log('🔴 Query result:', { data, error });
+
           if (error) {
-            console.error('Update error:', error);
+            console.error('❌ Update error:', error);
+            console.error('❌ Error code:', (error as any).code);
+            console.error('❌ Error message:', error.message);
+            console.error('❌ Full error:', JSON.stringify(error));
             throw error;
           }
 
-          console.log('Event updated successfully:', data?.id);
+          console.log('✅ Event updated successfully:', data?.id);
           return new Response(JSON.stringify({ event: data }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
