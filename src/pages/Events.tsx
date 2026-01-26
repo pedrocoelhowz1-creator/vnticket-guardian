@@ -258,6 +258,24 @@ const Events = () => {
   const handleOpenDialog = (event?: Event) => {
     if (event) {
       setEditingEvent(event);
+      
+      // Converte is_available para booleano corretamente (pode vir como string)
+      let isAvailable = true;
+      if (event.is_available !== undefined && event.is_available !== null) {
+        if (typeof event.is_available === 'string') {
+          isAvailable = event.is_available === 'true' || event.is_available === '1';
+        } else {
+          isAvailable = Boolean(event.is_available);
+        }
+      }
+      
+      console.log('📋 Abrindo evento para edição:');
+      console.log('ID:', event.id);
+      console.log('Título:', event.title);
+      console.log('is_available (raw):', event.is_available);
+      console.log('is_available (converted):', isAvailable);
+      console.log('unavailability_reason:', event.unavailability_reason);
+      
       setFormData({
         title: event.title,
         description: event.description || "",
@@ -271,7 +289,7 @@ const Events = () => {
         producer_id: (event as any).producer_id || "",
         has_fee: event.has_fee || false,
         fee_amount: String(event.fee_amount || ""),
-        is_available: event.is_available !== undefined ? event.is_available : true,
+        is_available: isAvailable,
         unavailability_reason: event.unavailability_reason || ""
       });
       setImagePreview(event.image_url || null);
@@ -778,7 +796,11 @@ const Events = () => {
                       type="checkbox"
                       id="is_available"
                       checked={formData.is_available}
-                      onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
+                      onChange={(e) => {
+                        console.log('✅ Checkbox clicado:');
+                        console.log('Novo valor:', e.target.checked);
+                        setFormData({ ...formData, is_available: e.target.checked });
+                      }}
                       className="rounded border-border/50"
                     />
                     <Label htmlFor="is_available">Evento disponível para compra</Label>
