@@ -423,7 +423,7 @@ Deno.serve(async (req) => {
           if (updates.category !== undefined) cleanedUpdates.category = updates.category || null;
           if (updates.has_fee !== undefined) cleanedUpdates.has_fee = updates.has_fee || false;
           if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = updates.fee_amount || 0;
-          if (updates.is_available !== undefined) cleanedUpdates.is_available = updates.is_available !== undefined ? updates.is_available : true;
+          if (updates.is_available !== undefined) cleanedUpdates.is_available = updates.is_available;
           if (updates.unavailability_reason !== undefined) cleanedUpdates.unavailability_reason = updates.unavailability_reason || null;
           
           console.log('Updating event:', id);
