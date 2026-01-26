@@ -408,6 +408,10 @@ Deno.serve(async (req) => {
         if (normalizedAction === 'update' || action === 'update') {
           const { id, ...updates } = body;
           
+          console.log('🔄 UPDATE iniciando');
+          console.log('Body recebido:', body);
+          console.log('Updates:', updates);
+          
           // Limpa campos vazios e converte para null quando apropriado
           const cleanedUpdates: any = {
             updated_at: new Date().toISOString()
@@ -425,6 +429,8 @@ Deno.serve(async (req) => {
           if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = updates.fee_amount || 0;
           if (updates.is_available !== undefined) cleanedUpdates.is_available = updates.is_available;
           if (updates.unavailability_reason !== undefined) cleanedUpdates.unavailability_reason = updates.unavailability_reason || null;
+          
+          console.log('📝 cleanedUpdates final:', cleanedUpdates);
           
           console.log('Updating event:', id);
           console.log('Updates:', cleanedUpdates);
