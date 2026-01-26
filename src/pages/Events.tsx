@@ -444,6 +444,8 @@ const Events = () => {
         unavailability_reason: !formData.is_available ? formData.unavailability_reason : null
       };
 
+      console.log('📤 Enviando eventData:', eventData);
+
       const action = editingEvent ? 'update' : 'create';
       const body = editingEvent ? { id: editingEvent.id, ...eventData } : eventData;
 
