@@ -466,12 +466,51 @@ const Events = () => {
 
       if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
+      // Atualiza o estado local imediatamente com a resposta do servidor
+      if (data.event) {
+        const updatedEvent = data.event;
+        
+        if (editingEvent) {
+          // Atualiza o evento na lista local
+          setEvents(prevEvents =>
+            prevEvents.map(e =>
+              e.id === updatedEvent.id
+                ? {
+                    ...updatedEvent,
+                    id: updatedEvent.id,
+                    title: updatedEvent.title,
+                    description: updatedEvent.description,
+                    date: updatedEvent.date,
+                    location: updatedEvent.location,
+                    price: updatedEvent.price,
+                    available_tickets: updatedEvent.available_tickets,
+                    image_url: updatedEvent.image_url,
+                    image_fit: updatedEvent.image_fit,
+                    category: updatedEvent.category,
+                    has_fee: updatedEvent.has_fee,
+                    fee_amount: updatedEvent.fee_amount,
+                    producer_id: updatedEvent.producer_id,
+                    is_available: updatedEvent.is_available,
+                    unavailability_reason: updatedEvent.unavailability_reason,
+                    created_at: updatedEvent.created_at,
+                    updated_at: updatedEvent.updated_at
+                  }
+                : e
+            )
+          );
+        } else {
+          // Adiciona novo evento à lista
+          setEvents(prevEvents => [...prevEvents, updatedEvent]);
+        }
+      }
+
       toast({
         title: editingEvent ? "Evento atualizado" : "Evento criado",
         description: `"${formData.title}" foi ${editingEvent ? 'atualizado' : 'criado'} com sucesso`
       });
 
       handleCloseDialog();
+      // Ainda chama loadEvents() para sincronizar em background se houver mudanças
       loadEvents();
     } catch (error: any) {
       console.error('Error saving event:', error);
