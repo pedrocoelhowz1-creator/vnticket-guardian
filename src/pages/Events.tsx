@@ -49,6 +49,7 @@ interface EventFormData {
   date: string;
   location: string;
   price: string;
+  mainPriceName: string;
   available_tickets: string;
   image_url: string;
   image_fit: string;
@@ -67,6 +68,7 @@ const initialFormData: EventFormData = {
   date: "",
   location: "",
   price: "",
+  mainPriceName: "",
   available_tickets: "",
   image_url: "",
   image_fit: "contain",
@@ -277,12 +279,19 @@ const Events = () => {
         }
       }
       
+      // Carrega mainPriceName do primeiro item do array prices se existir
+      let mainPriceName = "";
+      if (Array.isArray(event.prices) && event.prices.length > 0) {
+        mainPriceName = event.prices[0].name || "";
+      }
+      
       console.log('📋 Abrindo evento para edição:');
       console.log('ID:', event.id);
       console.log('Título:', event.title);
       console.log('is_available (raw):', event.is_available);
       console.log('is_available (converted):', isAvailable);
       console.log('unavailability_reason:', event.unavailability_reason);
+      console.log('mainPriceName:', mainPriceName);
       console.log('prices:', event.prices);
       
       setFormData({
@@ -291,6 +300,7 @@ const Events = () => {
         date: event.date ? event.date.slice(0, 16) : "",
         location: event.location,
         price: String(event.price),
+        mainPriceName: mainPriceName,
         available_tickets: String(event.available_tickets),
         image_url: event.image_url || "",
         image_fit: event.image_fit || "contain",
@@ -300,7 +310,7 @@ const Events = () => {
         fee_amount: String(event.fee_amount || ""),
         is_available: isAvailable,
         unavailability_reason: event.unavailability_reason || "",
-        prices: Array.isArray(event.prices) ? event.prices : []
+        prices: Array.isArray(event.prices) ? event.prices.slice(1) : []
       });
       setImagePreview(event.image_url || null);
       setUseImageUpload(false);
@@ -497,7 +507,12 @@ const Events = () => {
         fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) : 0,
         is_available: formData.is_available,
         unavailability_reason: !formData.is_available ? formData.unavailability_reason : null,
-        prices: formData.prices.length > 0 ? formData.prices : []
+        prices: [
+          // Se mainPriceName tem valor, adiciona como primeiro item
+          ...(formData.mainPriceName.trim() ? [{ name: formData.mainPriceName, price: parseFloat(formData.price) }] : []),
+          // Adiciona os outros preços
+          ...formData.prices
+        ]
       };
 
       console.log('📤 Enviando eventData:', eventData);
@@ -782,19 +797,31 @@ const Events = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="available_tickets">Ingressos *</Label>
+                    <Label htmlFor="mainPriceName">Nome do Tipo (Opcional)</Label>
                     <Input
-                      id="available_tickets"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      placeholder="200"
-                      value={formData.available_tickets}
-                      onChange={(e) => setFormData({ ...formData, available_tickets: e.target.value })}
-                      required
+                      id="mainPriceName"
+                      type="text"
+                      placeholder="Ex: Pista, Inteira, VIP..."
+                      value={formData.mainPriceName}
+                      onChange={(e) => setFormData({ ...formData, mainPriceName: e.target.value })}
                       className="bg-secondary/50 border-border/50 focus:border-primary"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="available_tickets">Ingressos *</Label>
+                  <Input
+                    id="available_tickets"
+                    type="number"
+                    min="1"
+                    max="10000"
+                    placeholder="200"
+                    value={formData.available_tickets}
+                    onChange={(e) => setFormData({ ...formData, available_tickets: e.target.value })}
+                    required
+                    className="bg-secondary/50 border-border/50 focus:border-primary"
+                  />
                 </div>
 
                 <div className="space-y-4 border-t border-border/30 pt-4">
