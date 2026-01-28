@@ -391,6 +391,7 @@ Deno.serve(async (req) => {
               fee_amount: body.fee_amount || 0,
               is_available: body.is_available !== undefined ? body.is_available : true,
               unavailability_reason: body.unavailability_reason || null,
+              prices: Array.isArray(body.prices) ? body.prices : [],
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }])
@@ -429,6 +430,7 @@ Deno.serve(async (req) => {
           if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = updates.fee_amount || 0;
           if (updates.is_available !== undefined) cleanedUpdates.is_available = updates.is_available;
           if (updates.unavailability_reason !== undefined) cleanedUpdates.unavailability_reason = updates.unavailability_reason || null;
+          if (updates.prices !== undefined) cleanedUpdates.prices = Array.isArray(updates.prices) ? updates.prices : [];
           
           console.log('📝 cleanedUpdates final:', cleanedUpdates);
           

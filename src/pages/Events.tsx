@@ -17,6 +17,11 @@ import { ptBR } from "date-fns/locale";
 import type { Session } from "@supabase/supabase-js";
 import logo from "@/assets/logo.png";
 
+interface PriceOption {
+  name: string;
+  price: number;
+}
+
 interface Event {
   id: string;
   title: string;
@@ -33,6 +38,7 @@ interface Event {
   producer_id: string | null;
   is_available: boolean;
   unavailability_reason: string | null;
+  prices?: PriceOption[];
   created_at: string | null;
   updated_at: string | null;
 }
@@ -52,6 +58,7 @@ interface EventFormData {
   fee_amount: string;
   is_available: boolean;
   unavailability_reason: string;
+  prices: PriceOption[];
 }
 
 const initialFormData: EventFormData = {
@@ -68,7 +75,8 @@ const initialFormData: EventFormData = {
   has_fee: false,
   fee_amount: "",
   is_available: true,
-  unavailability_reason: ""
+  unavailability_reason: "",
+  prices: []
 };
 
 const CATEGORIES = [
@@ -275,6 +283,7 @@ const Events = () => {
       console.log('is_available (raw):', event.is_available);
       console.log('is_available (converted):', isAvailable);
       console.log('unavailability_reason:', event.unavailability_reason);
+      console.log('prices:', event.prices);
       
       setFormData({
         title: event.title,
@@ -290,7 +299,8 @@ const Events = () => {
         has_fee: event.has_fee || false,
         fee_amount: String(event.fee_amount || ""),
         is_available: isAvailable,
-        unavailability_reason: event.unavailability_reason || ""
+        unavailability_reason: event.unavailability_reason || "",
+        prices: Array.isArray(event.prices) ? event.prices : []
       });
       setImagePreview(event.image_url || null);
       setUseImageUpload(false);
@@ -414,6 +424,33 @@ const Events = () => {
     }
   };
 
+  const handleAddPrice = () => {
+    setFormData({
+      ...formData,
+      prices: [...formData.prices, { name: "", price: 0 }]
+    });
+  };
+
+  const handleRemovePrice = (index: number) => {
+    setFormData({
+      ...formData,
+      prices: formData.prices.filter((_, i) => i !== index)
+    });
+  };
+
+  const handleUpdatePrice = (index: number, field: keyof PriceOption, value: string | number) => {
+    const updatedPrices = [...formData.prices];
+    if (field === "name") {
+      updatedPrices[index].name = value as string;
+    } else if (field === "price") {
+      updatedPrices[index].price = parseFloat(value as string) || 0;
+    }
+    setFormData({
+      ...formData,
+      prices: updatedPrices
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -459,7 +496,8 @@ const Events = () => {
         has_fee: formData.has_fee,
         fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) : 0,
         is_available: formData.is_available,
-        unavailability_reason: !formData.is_available ? formData.unavailability_reason : null
+        unavailability_reason: !formData.is_available ? formData.unavailability_reason : null,
+        prices: formData.prices.length > 0 ? formData.prices : []
       };
 
       console.log('📤 Enviando eventData:', eventData);
@@ -510,6 +548,7 @@ const Events = () => {
                     producer_id: updatedEvent.producer_id,
                     is_available: updatedEvent.is_available,
                     unavailability_reason: updatedEvent.unavailability_reason,
+                    prices: updatedEvent.prices || [],
                     created_at: updatedEvent.created_at,
                     updated_at: updatedEvent.updated_at
                   }
@@ -756,6 +795,65 @@ const Events = () => {
                       className="bg-secondary/50 border-border/50 focus:border-primary"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-4 border-t border-border/30 pt-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Tipos de Ingressos (Opcional)</h3>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleAddPrice}
+                      className="border-border/50 hover:bg-primary/10"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar
+                    </Button>
+                  </div>
+                  
+                  {formData.prices.length > 0 && (
+                    <div className="space-y-3 bg-secondary/20 p-4 rounded-lg border border-border/30">
+                      {formData.prices.map((priceOption, index) => (
+                        <div key={index} className="flex gap-2 items-end">
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-xs">Nome do tipo</Label>
+                            <Input
+                              type="text"
+                              placeholder="Ex: Pista, Camarote, VIP"
+                              value={priceOption.name}
+                              onChange={(e) => handleUpdatePrice(index, "name", e.target.value)}
+                              className="bg-secondary/50 border-border/50 focus:border-primary text-sm"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-xs">Preço (R$)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={priceOption.price || ""}
+                              onChange={(e) => handleUpdatePrice(index, "price", e.target.value)}
+                              className="bg-secondary/50 border-border/50 focus:border-primary text-sm"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleRemovePrice(index)}
+                            className="h-10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        💡 Adicione diferentes categorias de ingressos (pista, camarote, VIP, etc) com seus respectivos preços. Isso será exibido no site de vendas.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">
