@@ -376,6 +376,10 @@ Deno.serve(async (req) => {
             });
           }
 
+          console.log('🆕 CREATE iniciando');
+          console.log('Body.prices para CREATE:', body.prices);
+          console.log('JSON.stringify(body.prices):', JSON.stringify(body.prices, null, 2));
+
           const { data, error } = await vnTicket
             .from('events')
             .insert([{
@@ -399,7 +403,13 @@ Deno.serve(async (req) => {
             .select()
             .single();
 
-          if (error) throw error;
+          if (error) {
+            console.error('❌ CREATE error:', error);
+            throw error;
+          }
+          
+          console.log('✅ Event created successfully with prices:', data?.prices);
+
 
           return new Response(JSON.stringify({ event: data }), {
             status: 201,
@@ -412,6 +422,10 @@ Deno.serve(async (req) => {
           
           console.log('🔄 UPDATE iniciando');
           console.log('Body recebido:', body);
+          console.log('Body.prices recebido:', body.prices);
+          console.log('Type de body.prices:', typeof body.prices);
+          console.log('Is Array body.prices:', Array.isArray(body.prices));
+          console.log('JSON.stringify(body.prices):', JSON.stringify(body.prices, null, 2));
           console.log('Updates:', updates);
           
           // Limpa campos vazios e converte para null quando apropriado
@@ -431,9 +445,14 @@ Deno.serve(async (req) => {
           if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = updates.fee_amount || 0;
           if (updates.is_available !== undefined) cleanedUpdates.is_available = updates.is_available;
           if (updates.unavailability_reason !== undefined) cleanedUpdates.unavailability_reason = updates.unavailability_reason || null;
-          if (updates.prices !== undefined) cleanedUpdates.prices = Array.isArray(updates.prices) ? updates.prices : [];
+          if (updates.prices !== undefined) {
+            console.log('🛠️ Processando prices:', updates.prices);
+            cleanedUpdates.prices = Array.isArray(updates.prices) ? updates.prices : [];
+            console.log('🛠️ Preços após limpeza:', cleanedUpdates.prices);
+          }
           
           console.log('📝 cleanedUpdates final:', cleanedUpdates);
+          console.log('📝 cleanedUpdates.prices:', cleanedUpdates.prices);
           
           console.log('Updating event:', id);
           console.log('Updates:', cleanedUpdates);
@@ -446,6 +465,8 @@ Deno.serve(async (req) => {
             .single();
 
           console.log('🔴 Query result:', { data, error });
+          console.log('🔴 Data após update:', data);
+          console.log('🔴 Data.prices após update:', data?.prices);
 
           if (error) {
             console.error('❌ Update error:', error);
@@ -456,6 +477,7 @@ Deno.serve(async (req) => {
           }
 
           console.log('✅ Event updated successfully:', data?.id);
+          console.log('✅ Prices salvo:', data?.prices);
           return new Response(JSON.stringify({ event: data }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }

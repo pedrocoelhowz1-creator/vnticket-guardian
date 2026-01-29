@@ -533,7 +533,12 @@ const Events = () => {
         ]
       };
 
-      console.log('📤 Enviando eventData:', eventData);
+      console.log('📤 Enviando eventData - prices array:');
+      console.log('mainPriceName:', formData.mainPriceName);
+      console.log('formData.prices:', formData.prices);
+      console.log('Final prices array:', eventData.prices);
+      console.log('JSON.stringify(eventData.prices):', JSON.stringify(eventData.prices, null, 2));
+      console.log('📤 Enviando eventData completo:', eventData);
 
       const action = editingEvent ? 'update' : 'create';
       const body = editingEvent ? { id: editingEvent.id, ...eventData } : eventData;
