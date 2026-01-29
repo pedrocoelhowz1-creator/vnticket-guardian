@@ -516,13 +516,13 @@ const Events = () => {
         description: formData.description || null,
         date: new Date(formData.date).toISOString(),
         location: formData.location,
-        price: parseFloat(formData.price),
-        available_tickets: parseInt(formData.available_tickets),
+        price: parseFloat(formData.price) || 0,
+        available_tickets: parseInt(formData.available_tickets) || 0,
         image_url: imageUrl || null,
         category: formData.category || null,
         producer_id: producerId,
         has_fee: formData.has_fee,
-        fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) : 0,
+        fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) || 0 : 0,
         is_available: formData.is_available,
         unavailability_reason: !formData.is_available ? formData.unavailability_reason : null,
         ticket_types: [
@@ -538,8 +538,18 @@ const Events = () => {
       console.log('formData.ticket_types:', formData.ticket_types);
       console.log('Final ticket_types array:', eventData.ticket_types);
       console.log('JSON.stringify(eventData.ticket_types):', JSON.stringify(eventData.ticket_types, null, 2));
-      console.log('formData.available_tickets:', formData.available_tickets);
-      console.log('eventData.available_tickets:', eventData.available_tickets);
+      console.log('formData.available_tickets (string):', formData.available_tickets);
+      console.log('eventData.available_tickets (number):', eventData.available_tickets);
+      
+      // DEBUG: Verificar se available_tickets é válido
+      const parsedTickets = parseInt(formData.available_tickets);
+      if (isNaN(parsedTickets)) {
+        console.error('❌ ERROR: available_tickets é NaN!', {
+          input: formData.available_tickets,
+          type: typeof formData.available_tickets
+        });
+      }
+      
       console.log('📤 Enviando eventData completo:', eventData);
 
       const action = editingEvent ? 'update' : 'create';
