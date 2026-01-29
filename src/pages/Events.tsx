@@ -538,6 +538,8 @@ const Events = () => {
       console.log('formData.ticket_types:', formData.ticket_types);
       console.log('Final ticket_types array:', eventData.ticket_types);
       console.log('JSON.stringify(eventData.ticket_types):', JSON.stringify(eventData.ticket_types, null, 2));
+      console.log('formData.available_tickets:', formData.available_tickets);
+      console.log('eventData.available_tickets:', eventData.available_tickets);
       console.log('📤 Enviando eventData completo:', eventData);
 
       const action = editingEvent ? 'update' : 'create';
@@ -557,6 +559,10 @@ const Events = () => {
       });
 
       const data = await res.json();
+
+      console.log('📥 Resposta da API:', data);
+      console.log('📥 res.ok:', res.ok);
+      console.log('📥 data.event:', data.event);
 
       if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
