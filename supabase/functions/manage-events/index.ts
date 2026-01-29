@@ -402,7 +402,7 @@ Deno.serve(async (req) => {
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }])
-            .select()
+            .select('*')
             .single();
 
           if (error) {
@@ -428,7 +428,9 @@ Deno.serve(async (req) => {
           console.log('Type de body.ticket_types:', typeof body.ticket_types);
           console.log('Is Array body.ticket_types:', Array.isArray(body.ticket_types));
           console.log('JSON.stringify(body.ticket_types):', JSON.stringify(body.ticket_types, null, 2));
-          console.log('Updates:', updates);
+          console.log('Updates após destructuring:', updates);
+          console.log('Updates.ticket_types:', updates.ticket_types);
+          console.log('ID extraído:', id);
           
           // Limpa campos vazios e converte para null quando apropriado
           const cleanedUpdates: any = {
@@ -463,7 +465,7 @@ Deno.serve(async (req) => {
             .from('events')
             .update(cleanedUpdates)
             .eq('id', id)
-            .select()
+            .select('*')
             .single();
 
           console.log('🔴 Query result:', { data, error });
