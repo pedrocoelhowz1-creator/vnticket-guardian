@@ -389,13 +389,13 @@ Deno.serve(async (req) => {
               description: body.description,
               date: body.date,
               location: body.location,
-              price: body.price,
-              available_tickets: body.available_tickets,
+              price: parseFloat(String(body.price)) || 0,
+              available_tickets: parseInt(String(body.available_tickets)) || 0,
               image_url: body.image_url,
               category: body.category,
               producer_id: body.producer_id || null,
               has_fee: body.has_fee || false,
-              fee_amount: body.fee_amount || 0,
+              fee_amount: parseFloat(String(body.fee_amount)) || 0,
               is_available: body.is_available !== undefined ? body.is_available : true,
               unavailability_reason: body.unavailability_reason || null,
               ticket_types: Array.isArray(body.ticket_types) ? body.ticket_types : [],
@@ -441,12 +441,12 @@ Deno.serve(async (req) => {
           if (updates.description !== undefined) cleanedUpdates.description = updates.description || null;
           if (updates.date !== undefined) cleanedUpdates.date = updates.date || null;
           if (updates.location !== undefined) cleanedUpdates.location = updates.location || '';
-          if (updates.price !== undefined) cleanedUpdates.price = updates.price || 0;
-          if (updates.available_tickets !== undefined) cleanedUpdates.available_tickets = updates.available_tickets || 0;
+          if (updates.price !== undefined) cleanedUpdates.price = parseFloat(String(updates.price)) || 0;
+          if (updates.available_tickets !== undefined) cleanedUpdates.available_tickets = parseInt(String(updates.available_tickets)) || 0;
           if (updates.image_url !== undefined) cleanedUpdates.image_url = updates.image_url || null;
           if (updates.category !== undefined) cleanedUpdates.category = updates.category || null;
           if (updates.has_fee !== undefined) cleanedUpdates.has_fee = updates.has_fee || false;
-          if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = updates.fee_amount || 0;
+          if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = parseFloat(String(updates.fee_amount)) || 0;
           if (updates.is_available !== undefined) cleanedUpdates.is_available = updates.is_available;
           if (updates.unavailability_reason !== undefined) cleanedUpdates.unavailability_reason = updates.unavailability_reason || null;
           if (updates.ticket_types !== undefined) {
