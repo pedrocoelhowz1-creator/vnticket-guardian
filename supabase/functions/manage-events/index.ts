@@ -317,8 +317,9 @@ Deno.serve(async (req) => {
                 image_fit: event.image_fit || 'contain',
                 category: event.category || null,
                 has_fee: event.has_fee || false,
-                fee_amount: event.fee_amount || 0,
-                producer_id: event.producer_id || null,
+                fee_amount: event.fee_amount || 0,                is_available: event.is_available !== undefined ? event.is_available : true,
+                unavailability_reason: event.unavailability_reason || null,
+                prices: Array.isArray(event.prices) ? event.prices : [],                producer_id: event.producer_id || null,
                 created_at: event.created_at || null,
                 updated_at: event.updated_at || null
               }));

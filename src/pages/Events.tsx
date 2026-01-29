@@ -281,18 +281,36 @@ const Events = () => {
       
       // Carrega mainPriceName do primeiro item do array prices se existir
       let mainPriceName = "";
+      let otherPrices: PriceOption[] = [];
+      
+      console.log('📋 Raw event.prices:', event.prices);
+      console.log('📋 Type of event.prices:', typeof event.prices);
+      
       if (Array.isArray(event.prices) && event.prices.length > 0) {
-        mainPriceName = event.prices[0].name || "";
+        // Se tem prices como array, pega o primeiro como mainPrice
+        const firstPrice = event.prices[0];
+        console.log('📋 Primeiro preço:', firstPrice);
+        
+        if (firstPrice && typeof firstPrice === 'object' && 'name' in firstPrice) {
+          mainPriceName = firstPrice.name || "";
+        }
+        
+        // Adiciona os outros preços (a partir do segundo)
+        otherPrices = event.prices.slice(1);
+        console.log('📋 Outros preços:', otherPrices);
+      } else {
+        // Fallback: se prices não está populado, log para debug
+        console.log('📋 Nenhum preço no array, prices vazio ou undefined');
+        console.log('📋 event.prices:', event.prices);
       }
       
       console.log('📋 Abrindo evento para edição:');
       console.log('ID:', event.id);
       console.log('Título:', event.title);
+      console.log('mainPriceName carregado:', mainPriceName);
+      console.log('prices carregados:', otherPrices);
       console.log('is_available (raw):', event.is_available);
       console.log('is_available (converted):', isAvailable);
-      console.log('unavailability_reason:', event.unavailability_reason);
-      console.log('mainPriceName:', mainPriceName);
-      console.log('prices:', event.prices);
       
       setFormData({
         title: event.title,
@@ -310,7 +328,7 @@ const Events = () => {
         fee_amount: String(event.fee_amount || ""),
         is_available: isAvailable,
         unavailability_reason: event.unavailability_reason || "",
-        prices: Array.isArray(event.prices) ? event.prices.slice(1) : []
+        prices: otherPrices
       });
       setImagePreview(event.image_url || null);
       setUseImageUpload(false);
