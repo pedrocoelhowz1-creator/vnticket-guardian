@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seletor de Ingressos - VN Ticket</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .event-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .event-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+
+        .event-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .event-info {
+            font-size: 14px;
+            opacity: 0.9;
+            margin: 5px 0;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .price-options {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .price-option {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .price-option:hover {
+            border-color: #667eea;
+            background-color: #f5f7ff;
+        }
+
+        .price-option input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .price-option-content {
+            flex: 1;
+        }
+
+        .price-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 3px;
+        }
+
+        .price-description {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .price-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .price-option input[type="radio"]:checked + .price-option-content {
+            color: #667eea;
+        }
+
+        .price-option.selected {
+            border-color: #667eea;
+            background-color: #f5f7ff;
+        }
+
+        .summary {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .summary-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .summary-label {
+            color: #666;
+        }
+
+        .summary-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .total-row {
+            border-top: 2px solid #ddd;
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+
+        .total-row .summary-value {
+            font-size: 20px;
+            color: #667eea;
+        }
+
+        .quantity-section {
+            margin-bottom: 20px;
+        }
+
+        .quantity-label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .quantity-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .quantity-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cancel {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-cancel:hover {
+            background-color: #e0e0e0;
+        }
+
+        .btn-buy {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            grid-column: span 2;
+        }
+
+        .btn-buy:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-buy:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .unavailable-banner {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .unavailable-banner p {
+            color: #856404;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .fee-badge {
+            display: inline-block;
+            background-color: #e8f4f8;
+            color: #0277bd;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            border-radius: 4px;
+            color: #721c24;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            border-radius: 4px;
+            color: #155724;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-buy {
+                grid-column: span 1;
+            }
+
+            .event-title {
+                font-size: 22px;
+            }
+
+            .price-option {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .price-option input[type="radio"] {
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="event-container">
+            <!-- Conteúdo será preenchido dinamicamente -->
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURAÇÃO
+        // ============================================
+        const SUPABASE_URL = 'https://qqdtwekialqpakjgbonh.supabase.co';
+        const API_ENDPOINT = `${SUPABASE_URL}/functions/v1/manage-events`;
+        const TOKEN = localStorage.getItem('supabase_token') || 'SEU_TOKEN_AQUI';
+
+        // ============================================
+        // CLASSE PARA GERENCIAR EVENTO
+        // ============================================
+        class EventTicketSelector {
+            constructor(containerSelector, eventId) {
+                this.container = document.querySelector(containerSelector);
+                this.eventId = eventId;
+                this.event = null;
+                this.selectedPrice = null;
+                this.quantity = 1;
+                this.init();
+            }
+
+            async init() {
+                await this.loadEvent();
+                this.render();
+            }
+
+            async loadEvent() {
+                try {
+                    this.container.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Carregando evento...</p></div>';
+
+                    const response = await fetch(`${API_ENDPOINT}?action=list`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${TOKEN}`,
+                            'Content-Type': 'application/json',
+                            'apikey': 'sb_publishable_9MkvN2POLK3J1Qh4GvfIHw_22oBYzGw'
+                        }
+                    });
+
+                    if (!response.ok) throw new Error(`Erro: ${response.status}`);
+
+                    const data = await response.json();
+                    this.event = data.events.find(e => e.id === this.eventId);
+
+                    if (!this.event) {
+                        throw new Error('Evento não encontrado');
+                    }
+
+                    // Define preço selecionado por padrão
+                    if (this.event.prices && this.event.prices.length > 0) {
+                        this.selectedPrice = this.event.prices[0];
+                    } else {
+                        this.selectedPrice = { name: 'Inteira', price: this.event.price };
+                    }
+
+                } catch (error) {
+                    console.error('Erro ao carregar evento:', error);
+                    this.container.innerHTML = `<div class="error">Erro ao carregar evento: ${error.message}</div>`;
+                }
+            }
+
+            render() {
+                if (!this.event) return;
+
+                const priceOptions = (this.event.prices && this.event.prices.length > 0)
+                    ? this.event.prices
+                    : [{ name: 'Inteira', price: this.event.price }];
+
+                const priceOptionsHTML = priceOptions.map((option, index) => `
+                    <label class="price-option">
+                        <input
+                            type="radio"
+                            name="price"
+                            value="${option.name}"
+                            data-price="${option.price}"
+                            ${index === 0 ? 'checked' : ''}
+                            onchange="window.selector.selectPrice('${option.name}', ${option.price})"
+                        />
+                        <div class="price-option-content">
+                            <div class="price-name">${option.name}</div>
+                        </div>
+                        <div class="price-value">R$ ${option.price.toFixed(2)}</div>
+                    </label>
+                `).join('');
+
+                const unavailableHTML = !this.event.is_available ? `
+                    <div class="unavailable-banner">
+                        <p>⚠️ ${this.event.unavailability_reason || 'Este evento está indisponível no momento.'}</p>
+                    </div>
+                ` : '';
+
+                const total = (this.selectedPrice.price + (this.event.has_fee ? this.event.fee_amount : 0)) * this.quantity;
+
+                const html = `
+                    <div class="event-header">
+                        ${this.event.image_url ? `<img src="${this.event.image_url}" alt="${this.event.title}" class="event-image">` : ''}
+                        <div class="event-title">${this.event.title}</div>
+                        <div class="event-info">📍 ${this.event.location}</div>
+                        <div class="event-info">🗓️ ${new Date(this.event.date).toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+
+                    <div class="content">
+                        ${unavailableHTML}
+
+                        <h3 class="section-title">Escolha o Tipo de Ingresso</h3>
+                        <div class="price-options">
+                            ${priceOptionsHTML}
+                        </div>
+
+                        <h3 class="section-title">Quantidade</h3>
+                        <div class="quantity-section">
+                            <input
+                                type="number"
+                                class="quantity-input"
+                                value="${this.quantity}"
+                                min="1"
+                                max="10"
+                                onchange="window.selector.setQuantity(this.value)"
+                            />
+                        </div>
+
+                        <div class="summary">
+                            <div class="summary-row">
+                                <span class="summary-label">${this.selectedPrice.name}</span>
+                                <span class="summary-value">R$ ${this.selectedPrice.price.toFixed(2)}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label">Quantidade</span>
+                                <span class="summary-value">× ${this.quantity}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label">Subtotal</span>
+                                <span class="summary-value">R$ ${(this.selectedPrice.price * this.quantity).toFixed(2)}</span>
+                            </div>
+
+                            ${this.event.has_fee ? `
+                                <div class="summary-row">
+                                    <span class="summary-label">Taxa de Serviço <span class="fee-badge">${(this.event.fee_amount / this.selectedPrice.price * 100).toFixed(0)}%</span></span>
+                                    <span class="summary-value">R$ ${(this.event.fee_amount * this.quantity).toFixed(2)}</span>
+                                </div>
+                            ` : ''}
+
+                            <div class="summary-row total-row">
+                                <span class="summary-label">TOTAL</span>
+                                <span class="summary-value">R$ ${total.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="btn btn-cancel" onclick="window.selector.cancel()">Cancelar</button>
+                            <button class="btn btn-buy" onclick="window.selector.checkout()" ${!this.event.is_available ? 'disabled' : ''}>
+                                ${this.event.is_available ? '🎫 Comprar Ingresso' : 'Indisponível'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                this.container.innerHTML = html;
+            }
+
+            selectPrice(name, price) {
+                this.selectedPrice = { name, price };
+                this.render();
+            }
+
+            setQuantity(qty) {
+                this.quantity = Math.max(1, Math.min(10, parseInt(qty) || 1));
+                this.render();
+            }
+
+            cancel() {
+                alert('Operação cancelada');
+            }
+
+            checkout() {
+                const total = (this.selectedPrice.price + (this.event.has_fee ? this.event.fee_amount : 0)) * this.quantity;
+                const orderData = {
+                    eventId: this.event.id,
+                    eventTitle: this.event.title,
+                    ticketType: this.selectedPrice.name,
+                    price: this.selectedPrice.price,
+                    quantity: this.quantity,
+                    subtotal: this.selectedPrice.price * this.quantity,
+                    fee: this.event.has_fee ? this.event.fee_amount * this.quantity : 0,
+                    total: total
+                };
+
+                console.log('Pedido preparado:', orderData);
+                alert(`Preparado para compra: ${orderData.quantity}x ${orderData.ticketType} = R$ ${orderData.total.toFixed(2)}`);
+                // Aqui você integraria com seu sistema de pagamento
+            }
+        }
+
+        // ============================================
+        // INICIALIZAR
+        // ============================================
+        window.selector = new EventTicketSelector('#event-container', 'COLOQUE_O_ID_DO_EVENTO_AQUI');
+    </script>
+</body>
+</html>
