@@ -455,19 +455,19 @@ const Events = () => {
   const handleAddPrice = () => {
     setFormData({
       ...formData,
-      prices: [...formData.prices, { name: "", price: 0 }]
+      ticket_types: [...formData.ticket_types, { name: "", price: 0 }]
     });
   };
 
   const handleRemovePrice = (index: number) => {
     setFormData({
       ...formData,
-      prices: formData.prices.filter((_, i) => i !== index)
+      ticket_types: formData.ticket_types.filter((_, i) => i !== index)
     });
   };
 
   const handleUpdatePrice = (index: number, field: keyof PriceOption, value: string | number) => {
-    const updatedPrices = [...formData.prices];
+    const updatedPrices = [...formData.ticket_types];
     if (field === "name") {
       updatedPrices[index].name = value as string;
     } else if (field === "price") {
@@ -475,7 +475,7 @@ const Events = () => {
     }
     setFormData({
       ...formData,
-      prices: updatedPrices
+      ticket_types: updatedPrices
     });
   };
 
@@ -586,7 +586,7 @@ const Events = () => {
                     producer_id: updatedEvent.producer_id,
                     is_available: updatedEvent.is_available,
                     unavailability_reason: updatedEvent.unavailability_reason,
-                    prices: updatedEvent.ticket_types || [],
+                    ticket_types: updatedEvent.ticket_types || [],
                     created_at: updatedEvent.created_at,
                     updated_at: updatedEvent.updated_at
                   }
@@ -862,9 +862,9 @@ const Events = () => {
                     </Button>
                   </div>
                   
-                  {formData.prices.length > 0 && (
+                  {formData.ticket_types.length > 0 && (
                     <div className="space-y-3 bg-secondary/20 p-4 rounded-lg border border-border/30">
-                      {formData.prices.map((priceOption, index) => (
+                      {formData.ticket_types.map((priceOption, index) => (
                         <div key={index} className="flex gap-2 items-end">
                           <div className="flex-1 space-y-1">
                             <Label className="text-xs">Nome do tipo</Label>
