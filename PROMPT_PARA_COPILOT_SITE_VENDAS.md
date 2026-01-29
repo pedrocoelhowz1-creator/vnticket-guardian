@@ -28,7 +28,7 @@ Preciso integrar meu site de vendas de ingressos com a API do VN Ticket Guardian
   "fee_amount": 5.50,
   "is_available": true,
   "unavailability_reason": null,
-  "prices": [
+  "ticket_types": [
     {"name": "Pista", "price": 30},
     {"name": "Camarote", "price": 60},
     {"name": "VIP", "price": 100}
@@ -39,8 +39,8 @@ Preciso integrar meu site de vendas de ingressos com a API do VN Ticket Guardian
 **O que preciso fazer:**
 
 1. Criar uma função que faz requisição para essa API e retorna a lista de eventos
-2. Se o evento tiver `prices` array com múltiplos itens, exibir essas opções em radio buttons
-3. Se não tiver `prices` ou array vazio, usar o `price` único como fallback
+2. Se o evento tiver `ticket_types` array com múltiplos itens, exibir essas opções em radio buttons
+3. Se não tiver `ticket_types` ou array vazio, usar o `price` único como fallback
 4. Quando o usuário seleciona um tipo de ingresso:
    - Mostrar o nome do tipo (ex: "Pista", "Camarote")
    - Mostrar o preço selecionado

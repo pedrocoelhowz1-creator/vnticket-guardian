@@ -317,9 +317,11 @@ Deno.serve(async (req) => {
                 image_fit: event.image_fit || 'contain',
                 category: event.category || null,
                 has_fee: event.has_fee || false,
-                fee_amount: event.fee_amount || 0,                is_available: event.is_available !== undefined ? event.is_available : true,
+                fee_amount: event.fee_amount || 0,
+                is_available: event.is_available !== undefined ? event.is_available : true,
                 unavailability_reason: event.unavailability_reason || null,
-                prices: Array.isArray(event.prices) ? event.prices : [],                producer_id: event.producer_id || null,
+                ticket_types: Array.isArray(event.ticket_types) ? event.ticket_types : [],
+                producer_id: event.producer_id || null,
                 created_at: event.created_at || null,
                 updated_at: event.updated_at || null
               }));
@@ -377,8 +379,8 @@ Deno.serve(async (req) => {
           }
 
           console.log('🆕 CREATE iniciando');
-          console.log('Body.prices para CREATE:', body.prices);
-          console.log('JSON.stringify(body.prices):', JSON.stringify(body.prices, null, 2));
+          console.log('Body.ticket_types para CREATE:', body.ticket_types);
+          console.log('JSON.stringify(body.ticket_types):', JSON.stringify(body.ticket_types, null, 2));
 
           const { data, error } = await vnTicket
             .from('events')
@@ -396,7 +398,7 @@ Deno.serve(async (req) => {
               fee_amount: body.fee_amount || 0,
               is_available: body.is_available !== undefined ? body.is_available : true,
               unavailability_reason: body.unavailability_reason || null,
-              prices: Array.isArray(body.prices) ? body.prices : [],
+              ticket_types: Array.isArray(body.ticket_types) ? body.ticket_types : [],
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }])
@@ -408,7 +410,7 @@ Deno.serve(async (req) => {
             throw error;
           }
           
-          console.log('✅ Event created successfully with prices:', data?.prices);
+          console.log('✅ Event created successfully with ticket_types:', data?.ticket_types);
 
 
           return new Response(JSON.stringify({ event: data }), {
@@ -422,10 +424,10 @@ Deno.serve(async (req) => {
           
           console.log('🔄 UPDATE iniciando');
           console.log('Body recebido:', body);
-          console.log('Body.prices recebido:', body.prices);
-          console.log('Type de body.prices:', typeof body.prices);
-          console.log('Is Array body.prices:', Array.isArray(body.prices));
-          console.log('JSON.stringify(body.prices):', JSON.stringify(body.prices, null, 2));
+          console.log('Body.ticket_types recebido:', body.ticket_types);
+          console.log('Type de body.ticket_types:', typeof body.ticket_types);
+          console.log('Is Array body.ticket_types:', Array.isArray(body.ticket_types));
+          console.log('JSON.stringify(body.ticket_types):', JSON.stringify(body.ticket_types, null, 2));
           console.log('Updates:', updates);
           
           // Limpa campos vazios e converte para null quando apropriado
@@ -445,14 +447,14 @@ Deno.serve(async (req) => {
           if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = updates.fee_amount || 0;
           if (updates.is_available !== undefined) cleanedUpdates.is_available = updates.is_available;
           if (updates.unavailability_reason !== undefined) cleanedUpdates.unavailability_reason = updates.unavailability_reason || null;
-          if (updates.prices !== undefined) {
-            console.log('🛠️ Processando prices:', updates.prices);
-            cleanedUpdates.prices = Array.isArray(updates.prices) ? updates.prices : [];
-            console.log('🛠️ Preços após limpeza:', cleanedUpdates.prices);
+          if (updates.ticket_types !== undefined) {
+            console.log('🛠️ Processando ticket_types:', updates.ticket_types);
+            cleanedUpdates.ticket_types = Array.isArray(updates.ticket_types) ? updates.ticket_types : [];
+            console.log('🛠️ Tipos de ingresso após limpeza:', cleanedUpdates.ticket_types);
           }
           
           console.log('📝 cleanedUpdates final:', cleanedUpdates);
-          console.log('📝 cleanedUpdates.prices:', cleanedUpdates.prices);
+          console.log('📝 cleanedUpdates.ticket_types:', cleanedUpdates.ticket_types);
           
           console.log('Updating event:', id);
           console.log('Updates:', cleanedUpdates);
@@ -466,7 +468,7 @@ Deno.serve(async (req) => {
 
           console.log('🔴 Query result:', { data, error });
           console.log('🔴 Data após update:', data);
-          console.log('🔴 Data.prices após update:', data?.prices);
+          console.log('🔴 Data.ticket_types após update:', data?.ticket_types);
 
           if (error) {
             console.error('❌ Update error:', error);
@@ -477,7 +479,7 @@ Deno.serve(async (req) => {
           }
 
           console.log('✅ Event updated successfully:', data?.id);
-          console.log('✅ Prices salvo:', data?.prices);
+          console.log('✅ Tipos de ingresso salvos:', data?.ticket_types);
           return new Response(JSON.stringify({ event: data }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }

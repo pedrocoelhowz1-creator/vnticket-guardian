@@ -38,7 +38,7 @@ interface Event {
   producer_id: string | null;
   is_available: boolean;
   unavailability_reason: string | null;
-  prices?: PriceOption[];
+  ticket_types?: PriceOption[];
   created_at: string | null;
   updated_at: string | null;
 }
@@ -59,7 +59,7 @@ interface EventFormData {
   fee_amount: string;
   is_available: boolean;
   unavailability_reason: string;
-  prices: PriceOption[];
+  ticket_types: PriceOption[];
 }
 
 const initialFormData: EventFormData = {
@@ -78,7 +78,7 @@ const initialFormData: EventFormData = {
   fee_amount: "",
   is_available: true,
   unavailability_reason: "",
-  prices: []
+  ticket_types: []
 };
 
 const CATEGORIES = [
@@ -279,36 +279,36 @@ const Events = () => {
         }
       }
       
-      // Carrega mainPriceName do primeiro item do array prices se existir
+      // Carrega mainPriceName do primeiro item do array ticket_types se existir
       let mainPriceName = "";
-      let otherPrices: PriceOption[] = [];
+      let otherTicketTypes: PriceOption[] = [];
       
-      console.log('📋 Raw event.prices:', event.prices);
-      console.log('📋 Type of event.prices:', typeof event.prices);
+      console.log('📋 Raw event.ticket_types:', event.ticket_types);
+      console.log('📋 Type of event.ticket_types:', typeof event.ticket_types);
       
-      if (Array.isArray(event.prices) && event.prices.length > 0) {
-        // Se tem prices como array, pega o primeiro como mainPrice
-        const firstPrice = event.prices[0];
-        console.log('📋 Primeiro preço:', firstPrice);
+      if (Array.isArray(event.ticket_types) && event.ticket_types.length > 0) {
+        // Se tem ticket_types como array, pega o primeiro como mainPrice
+        const firstPrice = event.ticket_types[0];
+        console.log('📋 Primeiro tipo de ingresso:', firstPrice);
         
         if (firstPrice && typeof firstPrice === 'object' && 'name' in firstPrice) {
           mainPriceName = firstPrice.name || "";
         }
         
-        // Adiciona os outros preços (a partir do segundo)
-        otherPrices = event.prices.slice(1);
-        console.log('📋 Outros preços:', otherPrices);
+        // Adiciona os outros tipos de ingresso (a partir do segundo)
+        otherTicketTypes = event.ticket_types.slice(1);
+        console.log('📋 Outros tipos de ingresso:', otherTicketTypes);
       } else {
-        // Fallback: se prices não está populado, log para debug
-        console.log('📋 Nenhum preço no array, prices vazio ou undefined');
-        console.log('📋 event.prices:', event.prices);
+        // Fallback: se ticket_types não está populado, log para debug
+        console.log('📋 Nenhum tipo de ingresso no array, ticket_types vazio ou undefined');
+        console.log('📋 event.ticket_types:', event.ticket_types);
       }
       
       console.log('📋 Abrindo evento para edição:');
       console.log('ID:', event.id);
       console.log('Título:', event.title);
       console.log('mainPriceName carregado:', mainPriceName);
-      console.log('prices carregados:', otherPrices);
+      console.log('ticket_types carregados:', otherTicketTypes);
       console.log('is_available (raw):', event.is_available);
       console.log('is_available (converted):', isAvailable);
       
@@ -328,7 +328,7 @@ const Events = () => {
         fee_amount: String(event.fee_amount || ""),
         is_available: isAvailable,
         unavailability_reason: event.unavailability_reason || "",
-        prices: otherPrices
+        ticket_types: otherTicketTypes
       });
       setImagePreview(event.image_url || null);
       setUseImageUpload(false);
@@ -525,19 +525,19 @@ const Events = () => {
         fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) : 0,
         is_available: formData.is_available,
         unavailability_reason: !formData.is_available ? formData.unavailability_reason : null,
-        prices: [
+        ticket_types: [
           // Se mainPriceName tem valor, adiciona como primeiro item
           ...(formData.mainPriceName.trim() ? [{ name: formData.mainPriceName, price: parseFloat(formData.price) }] : []),
-          // Adiciona os outros preços
-          ...formData.prices
+          // Adiciona os outros tipos de ingresso
+          ...formData.ticket_types
         ]
       };
 
-      console.log('📤 Enviando eventData - prices array:');
+      console.log('📤 Enviando eventData - ticket_types array:');
       console.log('mainPriceName:', formData.mainPriceName);
-      console.log('formData.prices:', formData.prices);
-      console.log('Final prices array:', eventData.prices);
-      console.log('JSON.stringify(eventData.prices):', JSON.stringify(eventData.prices, null, 2));
+      console.log('formData.ticket_types:', formData.ticket_types);
+      console.log('Final ticket_types array:', eventData.ticket_types);
+      console.log('JSON.stringify(eventData.ticket_types):', JSON.stringify(eventData.ticket_types, null, 2));
       console.log('📤 Enviando eventData completo:', eventData);
 
       const action = editingEvent ? 'update' : 'create';
@@ -586,7 +586,7 @@ const Events = () => {
                     producer_id: updatedEvent.producer_id,
                     is_available: updatedEvent.is_available,
                     unavailability_reason: updatedEvent.unavailability_reason,
-                    prices: updatedEvent.prices || [],
+                    prices: updatedEvent.ticket_types || [],
                     created_at: updatedEvent.created_at,
                     updated_at: updatedEvent.updated_at
                   }
