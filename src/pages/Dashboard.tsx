@@ -549,8 +549,7 @@ const Dashboard = () => {
             const colors = colorValues[action.lightColor as keyof typeof colorValues];
             
             return (
-              <div key={idx} className="group">
-                <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 rounded-2xl blur-xl transition-all duration-500" style={{backgroundImage: `linear-gradient(to bottom right, rgba(${colors.gradStart}, 0.3), rgba(0, 0, 0, 0))`}}></div>
+              <div key={idx} className="relative">
                 <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-300 overflow-hidden h-full">
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -676,8 +675,7 @@ const Dashboard = () => {
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {stats.events.map((event, idx) => (
-                    <div key={event.id} className="group/card relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] hover:from-white/10 hover:to-white/5 transition-all p-4 hover:border-white/20">
-                      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-2xl opacity-0 group-hover/card:opacity-100 transition-opacity"></div>
+                    <div key={event.id} className="relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] hover:from-white/10 hover:to-white/5 transition-all p-4 hover:border-white/20">
                       <div className="relative">
                         <div className="flex items-start justify-between mb-3">
                           <h4 className="font-bold text-white text-sm line-clamp-2">{event.title}</h4>
