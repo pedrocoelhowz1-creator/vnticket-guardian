@@ -170,12 +170,15 @@ const Dashboard = () => {
       // Buscar vendas apenas da tabela PURCHASES
       const { data: vendasRaw, error: vendasError } = await supabase
         .from('purchases')
-        .select('*');
+        .select('*')
+        .limit(1000);
 
       if (vendasError) {
         console.warn('⚠️ Erro ao buscar purchases:', vendasError);
       }
       console.log('✅ Vendas carregadas de PURCHASES:', vendasRaw?.length);
+      console.log('💳 Todas as vendas (com limit 1000):', vendasRaw);
+      console.log('📊 Status de cada venda:', vendasRaw?.map((v: any) => ({ id: v.id, status: v.status, total_amount: v.total_amount })));
 
       // Enriquecer vendas com dados de eventos (assumindo que tem event_id ou similar)
       let vendas = (vendasRaw || []).map((v: any) => ({
