@@ -230,9 +230,8 @@ const Dashboard = () => {
       console.log('📊 Total de vendas ANTES filtro:', vendas?.length);
       console.log('📊 Todos os status das vendas:', vendas?.map((v: any) => v?.status));
       
-      // Filtrar APENAS vendas com status='paid'
-      vendas = vendas.filter((v: any) => v?.status === 'paid');
-      console.log('📦 Vendas com status paid após filtro:', vendas?.length);
+      // SEM FILTRO - mostrar TODAS as vendas
+      console.log('📦 Todas as vendas (sem filtro de status):', vendas?.length);
 
       // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
