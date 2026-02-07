@@ -191,13 +191,21 @@ const Dashboard = () => {
         const eventPrice = c.events?.price || 0;
         const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
         return sum + eventPrice + fee;
-      }, 0);
+      }, 0) + (manualTickets?.filter(t => {
+        const t_date = new Date(t.created_at);
+        t_date.setHours(0, 0, 0, 0);
+        return t_date >= today;
+      }).reduce((sum, t: any) => sum + (t.price || 0), 0) || 0);
 
       const weekRevenue = weekCheckins.reduce((sum, c: any) => {
         const eventPrice = c.events?.price || 0;
         const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
         return sum + eventPrice + fee;
-      }, 0);
+      }, 0) + (manualTickets?.filter(t => {
+        const t_date = new Date(t.created_at);
+        t_date.setHours(0, 0, 0, 0);
+        return t_date >= weekAgo && t_date <= today;
+      }).reduce((sum, t: any) => sum + (t.price || 0), 0) || 0);
 
       const totalTickets = (checkins?.length || 0) + (manualTickets?.length || 0);
       const todaySales = todayCheckins.length + (manualTickets?.filter(t => {
