@@ -178,7 +178,14 @@ const Dashboard = () => {
       
       console.log('📌 Resultado purchases (erro):', purchasesResult.error);
       console.log('📌 Resultado purchases (data length):', purchasesResult.data?.length);
-      console.log('📌 Procurando venda f5fca411-dac4-4dc4-b1d1-ebdfea774e44:', purchasesResult.data?.find((v: any) => v.user_id === 'f5fca411-dac4-4dc4-b1d1-ebdfea774e44'));
+      
+      // Contar TODAS as vendas (mesmo bloqueadas por RLS)
+      const countResult = await supabase
+        .from('purchases')
+        .select('*', { count: 'exact', head: true });
+      console.log('📌 Total de vendas na tabela (count exact):', countResult.count);
+      console.log('📌 Vendas retornadas pelo RLS:', purchasesResult.data?.length);
+      
       console.log('📌 Resultado purchases (data):', purchasesResult.data);
       
       if (!purchasesResult.error && purchasesResult.data?.length > 0) {
