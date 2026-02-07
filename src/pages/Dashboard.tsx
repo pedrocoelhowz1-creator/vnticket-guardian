@@ -174,20 +174,22 @@ const Dashboard = () => {
       // Tentar purchases primeiro
       const purchasesResult = await supabase
         .from('purchases')
-        .select('*');
+        .select('*')
+        .eq('status', 'paid');
       
       if (!purchasesResult.error && purchasesResult.data?.length > 0) {
         vendasRaw = purchasesResult.data;
-        console.log('✅ Vendas carregadas de PURCHASES:', vendasRaw?.length);
+        console.log('✅ Vendas carregadas de PURCHASES (paid):', vendasRaw?.length);
       } else {
         // Se purchases vazio, tentar vendas
         const vendasResult = await supabase
           .from('vendas')
-          .select('*');
+          .select('*')
+          .eq('status', 'paid');
         
         vendasRaw = vendasResult.data || [];
         vendasError = vendasResult.error;
-        console.log('✅ Vendas carregadas de VENDAS:', vendasRaw?.length);
+        console.log('✅ Vendas carregadas de VENDAS (paid):', vendasRaw?.length);
       }
 
       if (vendasError) {
