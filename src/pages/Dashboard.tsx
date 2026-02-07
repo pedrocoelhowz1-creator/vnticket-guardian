@@ -240,6 +240,27 @@ const Dashboard = () => {
         return v_date >= today;
       }).reduce((sum, v: any) => sum + (v.total_amount || 0), 0) || 0);
 
+      console.log('📅 Today checkins:', todayCheckins?.length, 'Revenue:', todayCheckins.reduce((sum, c: any) => sum + (c.events?.price || 0) + (c.events?.has_fee ? ((c.events?.price || 0) * 0.10) : 0), 0));
+      console.log('📅 Today manual_tickets:', manualTickets?.filter(t => {
+        const t_date = new Date(t.created_at);
+        t_date.setHours(0, 0, 0, 0);
+        return t_date >= today;
+      }).length, 'Revenue:', manualTickets?.filter(t => {
+        const t_date = new Date(t.created_at);
+        t_date.setHours(0, 0, 0, 0);
+        return t_date >= today;
+      }).reduce((sum, t: any) => sum + (t.price || 0), 0) || 0);
+      console.log('📅 Today vendas:', vendas?.filter(v => {
+        const v_date = new Date(v.created_at || v.data_venda);
+        v_date.setHours(0, 0, 0, 0);
+        return v_date >= today;
+      }).length, 'Revenue:', vendas?.filter(v => {
+        const v_date = new Date(v.created_at || v.data_venda);
+        v_date.setHours(0, 0, 0, 0);
+        return v_date >= today;
+      }).reduce((sum, v: any) => sum + (v.total_amount || 0), 0) || 0);
+      console.log('📅 Today Total Revenue:', todayRevenue);
+
       const weekRevenue = weekCheckins.reduce((sum, c: any) => {
         const eventPrice = c.events?.price || 0;
         const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
