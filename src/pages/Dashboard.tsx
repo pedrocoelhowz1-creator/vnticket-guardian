@@ -121,38 +121,46 @@ const Dashboard = () => {
       const { data: events, error: eventsError } = await eventsQuery;
       if (eventsError) throw eventsError;
 
-      // Buscar checkins com join para events
-      let checkinsQuery = supabase
-        .from('checkins')
-        .select('id, id_compra, id_evento, id_ingresso, buyer_email, validated_by, validated_at, status, reason, qr_payload, events:id_evento(id, price, producer_id, has_fee, fee_amount, title)');
+      // Criar mapa de eventos para lookup rápido
+      const eventMap = new Map();
+      (events || []).forEach(e => {
+        eventMap.set(e.id, e);
+      });
 
-      const { data: checkinsRaw, error: checkinsError } = await checkinsQuery;
+      // Buscar todos os checkins (sem tentar fazer join)
+      const { data: checkinsRaw, error: checkinsError } = await supabase
+        .from('checkins')
+        .select('id, id_compra, id_evento, id_ingresso, buyer_email, validated_by, validated_at, status, reason, qr_payload');
+
       if (checkinsError) throw checkinsError;
 
+      // Enriquecer checkins com dados de eventos
+      let checkins = (checkinsRaw || []).map((c: any) => ({
+        ...c,
+        events: eventMap.get(c.id_evento)
+      }));
+
       // Filtrar checkins do produtor se não for admin master
-      let checkins = checkinsRaw || [];
       if (!isAdminMaster && userId) {
-        checkins = checkins.filter(c => {
-          const event = Array.isArray(c.events) ? c.events[0] : c.events;
-          return event?.producer_id === userId;
-        });
+        checkins = checkins.filter((c: any) => c.events?.producer_id === userId);
       }
 
-      // Buscar vendas manuais com join para events
-      let ticketsQuery = supabase
+      // Buscar vendas manuais (sem tentar fazer join)
+      const { data: manualTicketsRaw, error: ticketsError } = await supabase
         .from('manual_tickets')
-        .select('id, event_id, buyer_name, buyer_cpf, buyer_phone, payment_method, sale_type, sale_origin, qr_generated, qr_payload, status, price, created_by, created_at, used_at, events:event_id(id, price, producer_id, has_fee, fee_amount, title)');
+        .select('id, event_id, buyer_name, buyer_cpf, buyer_phone, payment_method, sale_type, sale_origin, qr_generated, qr_payload, status, price, created_by, created_at, used_at');
 
-      const { data: manualTicketsRaw, error: ticketsError } = await ticketsQuery;
       if (ticketsError) throw ticketsError;
 
+      // Enriquecer manual_tickets com dados de eventos
+      let manualTickets = (manualTicketsRaw || []).map((t: any) => ({
+        ...t,
+        events: eventMap.get(t.event_id)
+      }));
+
       // Filtrar tickets do produtor se não for admin master
-      let manualTickets = manualTicketsRaw || [];
       if (!isAdminMaster && userId) {
-        manualTickets = manualTickets.filter(t => {
-          const event = Array.isArray(t.events) ? t.events[0] : t.events;
-          return event?.producer_id === userId;
-        });
+        manualTickets = manualTickets.filter((t: any) => t.events?.producer_id === userId);
       }
 
       // Calcular estatísticas
@@ -173,28 +181,21 @@ const Dashboard = () => {
         new Date(c.validated_at) >= weekAgo && new Date(c.validated_at) <= today
       ) || [];
 
-      const getEventData = (eventData: any) => {
-        return Array.isArray(eventData) ? eventData[0] : eventData;
-      };
-
       const totalRevenue = (checkins || []).reduce((sum, c: any) => {
-        const event = getEventData(c.events);
-        const eventPrice = event?.price || 0;
-        const fee = event?.has_fee ? (eventPrice * 0.10) : 0;
+        const eventPrice = c.events?.price || 0;
+        const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
         return sum + eventPrice + fee;
       }, 0) + (manualTickets || []).reduce((sum, t: any) => sum + (t.price || 0), 0);
 
       const todayRevenue = todayCheckins.reduce((sum, c: any) => {
-        const event = getEventData(c.events);
-        const eventPrice = event?.price || 0;
-        const fee = event?.has_fee ? (eventPrice * 0.10) : 0;
+        const eventPrice = c.events?.price || 0;
+        const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
         return sum + eventPrice + fee;
       }, 0);
 
       const weekRevenue = weekCheckins.reduce((sum, c: any) => {
-        const event = getEventData(c.events);
-        const eventPrice = event?.price || 0;
-        const fee = event?.has_fee ? (eventPrice * 0.10) : 0;
+        const eventPrice = c.events?.price || 0;
+        const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
         return sum + eventPrice + fee;
       }, 0);
 
@@ -223,9 +224,8 @@ const Dashboard = () => {
         ) || [];
 
         const dayRevenue = dayCheckins.reduce((sum, c: any) => {
-          const event = getEventData(c.events);
-          const eventPrice = event?.price || 0;
-          const fee = event?.has_fee ? (eventPrice * 0.10) : 0;
+          const eventPrice = c.events?.price || 0;
+          const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
           return sum + eventPrice + fee;
         }, 0);
 
@@ -239,11 +239,10 @@ const Dashboard = () => {
       // Top eventos por receita
       const eventRevenueMap = new Map();
       checkins?.forEach((c: any) => {
-        const event = getEventData(c.events);
-        const eventId = event?.id;
-        const eventTitle = event?.title || 'Desconhecido';
-        const eventPrice = event?.price || 0;
-        const fee = event?.has_fee ? (eventPrice * 0.10) : 0;
+        const eventId = c.events?.id;
+        const eventTitle = c.events?.title || 'Desconhecido';
+        const eventPrice = c.events?.price || 0;
+        const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
         const eventRevenue = eventPrice + fee;
 
         if (!eventRevenueMap.has(eventId)) {
