@@ -158,9 +158,24 @@ const Dashboard = () => {
         events: eventMap.get(t.event_id)
       }));
 
-      // Filtrar tickets do produtor se não for admin master
+      // Buscar vendas
+      const { data: vendasRaw, error: vendasError } = await supabase
+        .from('vendas')
+        .select('*');
+
+      if (vendasError) {
+        console.warn('Erro ao buscar vendas:', vendasError);
+      }
+
+      // Enriquecer vendas com dados de eventos (assumindo que tem event_id ou similar)
+      let vendas = (vendasRaw || []).map((v: any) => ({
+        ...v,
+        events: eventMap.get(v.event_id) || eventMap.get(v.id_evento)
+      }));
+
+      // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
-        manualTickets = manualTickets.filter((t: any) => t.events?.producer_id === userId);
+        vendas = vendas.filter((v: any) => v.events?.producer_id === userId);
       }
 
       // Calcular estatísticas
@@ -185,7 +200,7 @@ const Dashboard = () => {
         const eventPrice = c.events?.price || 0;
         const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
         return sum + eventPrice + fee;
-      }, 0) + (manualTickets || []).reduce((sum, t: any) => sum + (t.price || 0), 0);
+      }, 0) + (manualTickets || []).reduce((sum, t: any) => sum + (t.price || 0), 0) + (vendas || []).reduce((sum, v: any) => sum + (v.price || v.valor || 0), 0);
 
       const todayRevenue = todayCheckins.reduce((sum, c: any) => {
         const eventPrice = c.events?.price || 0;
@@ -195,7 +210,11 @@ const Dashboard = () => {
         const t_date = new Date(t.created_at);
         t_date.setHours(0, 0, 0, 0);
         return t_date >= today;
-      }).reduce((sum, t: any) => sum + (t.price || 0), 0) || 0);
+      }).reduce((sum, t: any) => sum + (t.price || 0), 0) || 0) + (vendas?.filter(v => {
+        const v_date = new Date(v.created_at || v.data_venda);
+        v_date.setHours(0, 0, 0, 0);
+        return v_date >= today;
+      }).reduce((sum, v: any) => sum + (v.price || v.valor || 0), 0) || 0);
 
       const weekRevenue = weekCheckins.reduce((sum, c: any) => {
         const eventPrice = c.events?.price || 0;
@@ -205,13 +224,21 @@ const Dashboard = () => {
         const t_date = new Date(t.created_at);
         t_date.setHours(0, 0, 0, 0);
         return t_date >= weekAgo && t_date <= today;
-      }).reduce((sum, t: any) => sum + (t.price || 0), 0) || 0);
+      }).reduce((sum, t: any) => sum + (t.price || 0), 0) || 0) + (vendas?.filter(v => {
+        const v_date = new Date(v.created_at || v.data_venda);
+        v_date.setHours(0, 0, 0, 0);
+        return v_date >= weekAgo && v_date <= today;
+      }).reduce((sum, v: any) => sum + (v.price || v.valor || 0), 0) || 0);
 
-      const totalTickets = (checkins?.length || 0) + (manualTickets?.length || 0);
+      const totalTickets = (checkins?.length || 0) + (manualTickets?.length || 0) + (vendas?.length || 0);
       const todaySales = todayCheckins.length + (manualTickets?.filter(t => {
         const t_date = new Date(t.created_at);
         t_date.setHours(0, 0, 0, 0);
         return t_date >= today;
+      }).length || 0) + (vendas?.filter(v => {
+        const v_date = new Date(v.created_at || v.data_venda);
+        v_date.setHours(0, 0, 0, 0);
+        return v_date >= today;
       }).length || 0);
 
       const conversionRate = totalTickets > 0 ? (validCheckins / totalTickets) * 100 : 0;
@@ -235,13 +262,18 @@ const Dashboard = () => {
           new Date(t.created_at) >= dayStart && new Date(t.created_at) <= dayEnd
         ) || [];
 
+        const dayVendas = vendas?.filter(v => {
+          const v_date = new Date(v.created_at || v.data_venda);
+          return v_date >= dayStart && v_date <= dayEnd;
+        }) || [];
+
         const dayRevenue = dayCheckins.reduce((sum, c: any) => {
           const eventPrice = c.events?.price || 0;
           const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
           return sum + eventPrice + fee;
-        }, 0) + dayManualTickets.reduce((sum, t: any) => sum + (t.price || 0), 0);
+        }, 0) + dayManualTickets.reduce((sum, t: any) => sum + (t.price || 0), 0) + dayVendas.reduce((sum, v: any) => sum + (v.price || v.valor || 0), 0);
 
-        const dayTickets = dayCheckins.length + dayManualTickets.length;
+        const dayTickets = dayCheckins.length + dayManualTickets.length + dayVendas.length;
 
         chartData.push({
           date: date.toLocaleDateString('pt-BR', { weekday: 'short', month: 'numeric', day: 'numeric' }),
