@@ -382,6 +382,10 @@ Deno.serve(async (req) => {
           console.log('Body.ticket_types para CREATE:', body.ticket_types);
           console.log('JSON.stringify(body.ticket_types):', JSON.stringify(body.ticket_types, null, 2));
 
+          // Calcula fee_amount como 10% do preço principal
+          const mainPrice = parseFloat(String(body.price)) || 0;
+          const calculatedFee = body.has_fee ? (mainPrice * 0.10) : 0;
+
           const { data, error } = await vnTicket
             .from('events')
             .insert([{
@@ -389,13 +393,13 @@ Deno.serve(async (req) => {
               description: body.description,
               date: body.date,
               location: body.location,
-              price: parseFloat(String(body.price)) || 0,
+              price: mainPrice,
               available_tickets: parseInt(String(body.available_tickets)) || 0,
               image_url: body.image_url,
               category: body.category,
               producer_id: body.producer_id || null,
               has_fee: body.has_fee || false,
-              fee_amount: parseFloat(String(body.fee_amount)) || 0,
+              fee_amount: calculatedFee,
               is_available: body.is_available !== undefined ? body.is_available : true,
               unavailability_reason: body.unavailability_reason || null,
               ticket_types: Array.isArray(body.ticket_types) ? body.ticket_types : [],
@@ -446,7 +450,11 @@ Deno.serve(async (req) => {
           if (updates.image_url !== undefined) cleanedUpdates.image_url = updates.image_url || null;
           if (updates.category !== undefined) cleanedUpdates.category = updates.category || null;
           if (updates.has_fee !== undefined) cleanedUpdates.has_fee = updates.has_fee || false;
-          if (updates.fee_amount !== undefined) cleanedUpdates.fee_amount = parseFloat(String(updates.fee_amount)) || 0;
+          // Calcula fee_amount como 10% do preço se has_fee é true
+          if (updates.has_fee !== undefined || updates.price !== undefined) {
+            const priceToUse = updates.price !== undefined ? parseFloat(String(updates.price)) || 0 : (body.price ? parseFloat(String(body.price)) : 0);
+            cleanedUpdates.fee_amount = cleanedUpdates.has_fee ? (priceToUse * 0.10) : 0;
+          }
           if (updates.is_available !== undefined) cleanedUpdates.is_available = updates.is_available;
           if (updates.unavailability_reason !== undefined) cleanedUpdates.unavailability_reason = updates.unavailability_reason || null;
           if (updates.ticket_types !== undefined) {

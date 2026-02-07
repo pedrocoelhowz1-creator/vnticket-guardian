@@ -56,7 +56,6 @@ interface EventFormData {
   category: string;
   producer_id: string;
   has_fee: boolean;
-  fee_amount: string;
   is_available: boolean;
   unavailability_reason: string;
   ticket_types: PriceOption[];
@@ -75,7 +74,6 @@ const initialFormData: EventFormData = {
   category: "",
   producer_id: "",
   has_fee: false,
-  fee_amount: "",
   is_available: true,
   unavailability_reason: "",
   ticket_types: []
@@ -325,7 +323,6 @@ const Events = () => {
         category: event.category || "",
         producer_id: (event as any).producer_id || "",
         has_fee: event.has_fee || false,
-        fee_amount: String(event.fee_amount || ""),
         is_available: isAvailable,
         unavailability_reason: event.unavailability_reason || "",
         ticket_types: otherTicketTypes
@@ -522,7 +519,6 @@ const Events = () => {
         category: formData.category || null,
         producer_id: producerId,
         has_fee: formData.has_fee,
-        fee_amount: formData.has_fee ? parseFloat(formData.fee_amount) || 0 : 0,
         is_available: formData.is_available,
         unavailability_reason: !formData.is_available ? formData.unavailability_reason : null,
         ticket_types: [
@@ -598,7 +594,6 @@ const Events = () => {
                     image_fit: updatedEvent.image_fit,
                     category: updatedEvent.category,
                     has_fee: updatedEvent.has_fee,
-                    fee_amount: updatedEvent.fee_amount,
                     producer_id: updatedEvent.producer_id,
                     is_available: updatedEvent.is_available,
                     unavailability_reason: updatedEvent.unavailability_reason,
@@ -935,20 +930,15 @@ const Events = () => {
                   </div>
 
                   {formData.has_fee && (
-                    <div className="space-y-2">
-                      <Label htmlFor="fee_amount">Valor da taxa (R$) *</Label>
-                      <Input
-                        id="fee_amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="1000"
-                        placeholder="5.00"
-                        value={formData.fee_amount}
-                        onChange={(e) => setFormData({ ...formData, fee_amount: e.target.value })}
-                        required={formData.has_fee}
-                        className="bg-secondary/50 border-border/50 focus:border-primary"
-                      />
+                    <div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        <strong>Taxa automática:</strong> 10% do valor de cada ingresso será adicionado ao preço final.
+                      </p>
+                      {formData.price && (
+                        <p className="text-sm text-blue-600 dark:text-blue-400">
+                          Taxa: R$ {(parseFloat(formData.price) * 0.1).toFixed(2)}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
