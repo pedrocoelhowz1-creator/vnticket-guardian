@@ -320,15 +320,15 @@ const Dashboard = () => {
       <header className="border-b border-white/10 bg-black/40 backdrop-blur-2xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+            <div className="relative">
               <div className="relative bg-black rounded-xl p-2">
                 <img src={logo} alt="VN TICKET" className="w-8 h-8" />
               </div>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                VN TICKET
+              <h1 className="text-xl font-black">
+                <span className="text-yellow-400">VN</span>
+                <span className="text-white ml-2">TICKET</span>
               </h1>
               <p className="text-xs text-gray-500">{isAdmin ? '👑 Admin Master Dashboard' : '🎫 Seu Dashboard Premium'}</p>
             </div>
