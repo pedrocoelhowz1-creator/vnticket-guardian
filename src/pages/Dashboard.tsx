@@ -5,12 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  QrCode, LogOut, TrendingUp, CheckCircle, XCircle, Calendar, 
-  Users, DollarSign, Ticket, ArrowUpRight, ArrowDownLeft,
-  BarChart3, PieChart, Eye, Eye2, FileText
+  QrCode, LogOut, TrendingUp,
+  Calendar, DollarSign,
+  BarChart3, PieChart, Zap,
+  Clock, Activity, Target, Award
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import logo from "@/assets/logo.png";
+import {
+  BarChart, Bar, PieChart as RechartsPie, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from "recharts";
 
 interface SalesStats {
   totalEvents: number;
@@ -21,7 +26,14 @@ interface SalesStats {
   invalidCheckins: number;
   todayRevenue: number;
   todaySales: number;
+  weekRevenue: number;
+  conversionRate: number;
+  avgTicketPrice: number;
+  eventStats: any[];
+  chartData: any[];
+  topEvents: any[];
   events: any[];
+  lastUpdated: Date;
 }
 
 const Dashboard = () => {
@@ -35,7 +47,14 @@ const Dashboard = () => {
     invalidCheckins: 0,
     todayRevenue: 0,
     todaySales: 0,
-    events: []
+    weekRevenue: 0,
+    conversionRate: 0,
+    avgTicketPrice: 0,
+    eventStats: [],
+    chartData: [],
+    topEvents: [],
+    events: [],
+    lastUpdated: new Date()
   });
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -105,7 +124,7 @@ const Dashboard = () => {
       // Buscar checkins
       let checkinsQuery = supabase
         .from('checkins')
-        .select('*, events!inner(id, price, producer_id, has_fee, fee_amount)');
+        .select('*, events!inner(id, price, producer_id, has_fee, fee_amount, title)');
 
       if (!isAdminMaster) {
         checkinsQuery = checkinsQuery.eq('events.producer_id', userId);
@@ -117,7 +136,7 @@ const Dashboard = () => {
       // Buscar vendas manuais
       let ticketsQuery = supabase
         .from('manual_tickets')
-        .select('*, events!inner(id, price, producer_id, has_fee, fee_amount)');
+        .select('*, events!inner(id, price, producer_id, has_fee, fee_amount, title)');
 
       if (!isAdminMaster) {
         ticketsQuery = ticketsQuery.eq('events.producer_id', userId);
@@ -130,11 +149,18 @@ const Dashboard = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+
       const validCheckins = checkins?.filter(c => c.status === 'valid').length || 0;
       const invalidCheckins = checkins?.filter(c => c.status === 'invalid').length || 0;
       
       const todayCheckins = checkins?.filter(c => 
         new Date(c.validated_at) >= today
+      ) || [];
+
+      const weekCheckins = checkins?.filter(c =>
+        new Date(c.validated_at) >= weekAgo && new Date(c.validated_at) <= today
       ) || [];
 
       const totalRevenue = (checkins || []).reduce((sum, c: any) => {
@@ -149,12 +175,75 @@ const Dashboard = () => {
         return sum + eventPrice + fee;
       }, 0);
 
+      const weekRevenue = weekCheckins.reduce((sum, c: any) => {
+        const eventPrice = c.events?.price || 0;
+        const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
+        return sum + eventPrice + fee;
+      }, 0);
+
       const totalTickets = (checkins?.length || 0) + (manualTickets?.length || 0);
       const todaySales = todayCheckins.length + (manualTickets?.filter(t => {
         const t_date = new Date(t.created_at);
         t_date.setHours(0, 0, 0, 0);
         return t_date >= today;
       }).length || 0);
+
+      const conversionRate = totalTickets > 0 ? (validCheckins / totalTickets) * 100 : 0;
+      const avgTicketPrice = totalTickets > 0 ? totalRevenue / totalTickets : 0;
+
+      // Dados para gráfico de receita por dia
+      const chartData: any[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dayStart = new Date(date);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(date);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        const dayCheckins = checkins?.filter(c =>
+          new Date(c.validated_at) >= dayStart && new Date(c.validated_at) <= dayEnd
+        ) || [];
+
+        const dayRevenue = dayCheckins.reduce((sum, c: any) => {
+          const eventPrice = c.events?.price || 0;
+          const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
+          return sum + eventPrice + fee;
+        }, 0);
+
+        chartData.push({
+          date: date.toLocaleDateString('pt-BR', { weekday: 'short', month: 'numeric', day: 'numeric' }),
+          revenue: dayRevenue,
+          tickets: dayCheckins.length
+        });
+      }
+
+      // Top eventos por receita
+      const eventRevenueMap = new Map();
+      checkins?.forEach((c: any) => {
+        const eventId = c.events?.id;
+        const eventTitle = c.events?.title || 'Desconhecido';
+        const eventPrice = c.events?.price || 0;
+        const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
+        const eventRevenue = eventPrice + fee;
+
+        if (!eventRevenueMap.has(eventId)) {
+          eventRevenueMap.set(eventId, { title: eventTitle, revenue: 0, tickets: 0 });
+        }
+        const current = eventRevenueMap.get(eventId);
+        current.revenue += eventRevenue;
+        current.tickets += 1;
+      });
+
+      const topEvents = Array.from(eventRevenueMap.values())
+        .sort((a: any, b: any) => b.revenue - a.revenue)
+        .slice(0, 5);
+
+      // Dados para pie chart
+      const eventStats = [
+        { name: 'Válidos', value: validCheckins, color: '#10b981' },
+        { name: 'Inválidos', value: invalidCheckins, color: '#ef4444' }
+      ];
 
       setStats({
         totalEvents: events?.length || 0,
@@ -165,7 +254,14 @@ const Dashboard = () => {
         invalidCheckins: invalidCheckins,
         todayRevenue: todayRevenue,
         todaySales: todaySales,
-        events: events || []
+        weekRevenue: weekRevenue,
+        conversionRate: conversionRate,
+        avgTicketPrice: avgTicketPrice,
+        eventStats: eventStats,
+        chartData: chartData,
+        topEvents: topEvents,
+        events: events || [],
+        lastUpdated: new Date()
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -190,212 +286,426 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-secondary/50 to-background">
-        <div className="text-center">
-          <img src={logo} alt="VN TICKET" className="w-16 h-16 mx-auto mb-4 animate-pulse" />
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Carregando seu dashboard...</p>
+      <div className="min-h-screen flex items-center justify-center bg-black overflow-hidden">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-600/30 to-transparent rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-purple-600/30 to-transparent rounded-full blur-3xl"></div>
+        </div>
+        <div className="relative z-10 text-center">
+          <div className="mb-8">
+            <div className="inline-block relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-xl blur-lg opacity-75 animate-pulse"></div>
+              <img src={logo} alt="VN TICKET" className="relative w-24 h-24 rounded-xl" />
+            </div>
+          </div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-transparent border-t-blue-400 mx-auto"></div>
+          <p className="mt-6 text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-lg font-bold">
+            Carregando seu dashboard...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-background">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="VN TICKET" className="w-10 h-10" />
-            <div>
-              <h1 className="text-2xl font-bold gradient-text">VN TICKET</h1>
-              <p className="text-xs text-muted-foreground">{isAdmin ? '👑 Admin Master' : 'Seu Dashboard'}</p>
+    <div className="min-h-screen bg-black">
+      {/* Animated Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-600/20 via-purple-600/10 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-cyan-600/20 via-blue-600/10 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-gradient-to-b from-pink-600/10 via-purple-600/5 to-transparent rounded-full blur-3xl"></div>
+      </div>
+
+      {/* Header Premium */}
+      <header className="border-b border-white/10 bg-black/40 backdrop-blur-2xl sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+              <div className="relative bg-black rounded-xl p-2">
+                <img src={logo} alt="VN TICKET" className="w-8 h-8" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                VN TICKET
+              </h1>
+              <p className="text-xs text-gray-500">{isAdmin ? '👑 Admin Master Dashboard' : '🎫 Seu Dashboard Premium'}</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={handleLogout}
-            className="hover:bg-destructive/10 hover:text-destructive"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sair
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:block text-right">
+              <p className="text-xs text-gray-500">Atualizado</p>
+              <p className="text-sm font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text">
+                {stats.lastUpdated.toLocaleTimeString('pt-BR')}
+              </p>
+            </div>
+            <Button 
+              onClick={handleLogout}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-lg shadow-red-500/20 transition-all"
+              size="sm"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
+            </Button>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {/* Total de Receita */}
-          <Card className="border-border/50 bg-gradient-to-br from-green-50/50 to-green-100/30 dark:from-green-950/30 dark:to-green-900/20 shadow-lg hover:shadow-xl transition-all">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">Receita Total</CardTitle>
-                <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
+      <main className="container mx-auto px-4 py-12 relative z-10">
+        {/* KPIs Ultra Premium - 4 Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {/* Receita Total */}
+          <div className="group relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/30 via-green-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+            <Card className="relative border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-xl shadow-2xl transition-all duration-300 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-semibold text-gray-300 mb-1">Receita Total</CardTitle>
+                    <div className="text-4xl font-black bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
+                      R$ {(stats.totalRevenue / 1000).toFixed(1)}K
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-green-500/10 rounded-xl backdrop-blur-sm border border-emerald-500/20">
+                    <DollarSign className="h-6 w-6 text-emerald-400" />
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-700 dark:text-green-400">
-                R$ {stats.totalRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-              </div>
-              <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-2">
-                {stats.totalSales} {stats.totalSales === 1 ? 'venda' : 'vendas'}
-              </p>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                  <p className="text-xs text-gray-400">{stats.totalSales} ingressos vendidos</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Receita Hoje */}
-          <Card className="border-border/50 bg-gradient-to-br from-blue-50/50 to-blue-100/30 dark:from-blue-950/30 dark:to-blue-900/20 shadow-lg hover:shadow-xl transition-all">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">Hoje</CardTitle>
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                  <ArrowUpRight className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="group relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/30 via-cyan-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+            <Card className="relative border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-xl shadow-2xl transition-all duration-300 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-semibold text-gray-300 mb-1">Receita Hoje</CardTitle>
+                    <div className="text-4xl font-black bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                      R$ {stats.todayRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 0})}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gradient-to-br from-blue-500/20 to-cyan-500/10 rounded-xl backdrop-blur-sm border border-blue-500/20">
+                    <TrendingUp className="h-6 w-6 text-blue-400" />
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-blue-700 dark:text-blue-400">
-                R$ {stats.todayRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-              </div>
-              <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-2">
-                {stats.todaySales} {stats.todaySales === 1 ? 'venda' : 'vendas'} hoje
-              </p>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <p className="text-xs text-gray-400">{stats.todaySales} vendas hoje</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Total de Ingressos */}
-          <Card className="border-border/50 bg-gradient-to-br from-purple-50/50 to-purple-100/30 dark:from-purple-950/30 dark:to-purple-900/20 shadow-lg hover:shadow-xl transition-all">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-400">Ingressos</CardTitle>
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
-                  <Ticket className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+          {/* Taxa Conversão */}
+          <div className="group relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/30 via-violet-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+            <Card className="relative border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-xl shadow-2xl transition-all duration-300 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-semibold text-gray-300 mb-1">Taxa Conversão</CardTitle>
+                    <div className="text-4xl font-black bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
+                      {stats.conversionRate.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gradient-to-br from-purple-500/20 to-violet-500/10 rounded-xl backdrop-blur-sm border border-purple-500/20">
+                    <Target className="h-6 w-6 text-purple-400" />
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-purple-700 dark:text-purple-400">
-                {stats.totalTickets}
-              </div>
-              <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-2">
-                <span className="text-green-600 dark:text-green-400">✓ {stats.validCheckins}</span> válidos
-              </p>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                  <p className="text-xs text-gray-400">{stats.validCheckins} / {stats.totalTickets} válidos</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Eventos */}
-          <Card className="border-border/50 bg-gradient-to-br from-orange-50/50 to-orange-100/30 dark:from-orange-950/30 dark:to-orange-900/20 shadow-lg hover:shadow-xl transition-all">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-400">Eventos</CardTitle>
-                <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
-                  <Calendar className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+          {/* Preço Médio */}
+          <div className="group relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/30 via-amber-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+            <Card className="relative border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-xl shadow-2xl transition-all duration-300 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-semibold text-gray-300 mb-1">Preço Médio</CardTitle>
+                    <div className="text-4xl font-black bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
+                      R$ {stats.avgTicketPrice.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gradient-to-br from-orange-500/20 to-amber-500/10 rounded-xl backdrop-blur-sm border border-orange-500/20">
+                    <Award className="h-6 w-6 text-orange-400" />
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-orange-700 dark:text-orange-400">
-                {stats.totalEvents}
-              </div>
-              <p className="text-xs text-orange-600/70 dark:text-orange-400/70 mt-2">
-                Eventos cadastrados
-              </p>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                  <p className="text-xs text-gray-400">Por ingresso</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Gráficos - Row Grande */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+          {/* Gráfico Receita */}
+          <div className="lg:col-span-2 group relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-cyan-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+            <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
+              <CardHeader className="border-b border-white/10 pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-blue-400" />
+                      Performance (7 Dias)
+                    </CardTitle>
+                    <CardDescription className="text-gray-400 text-xs">Receita e volume de ingressos</CardDescription>
+                  </div>
+                  <div className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full">
+                    <span className="text-xs font-bold text-blue-300">Em Tempo Real</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stats.chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff15" />
+                    <XAxis dataKey="date" stroke="#888888" style={{fontSize: '12px'}} />
+                    <YAxis stroke="#888888" style={{fontSize: '12px'}} />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: '#0f172a',
+                        border: '2px solid #3b82f6',
+                        borderRadius: '12px',
+                        color: '#e2e8f0',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="revenue" fill="#10b981" name="Receita (R$)" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="tickets" fill="#3b82f6" name="Ingressos" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Pie Chart */}
+          <div className="group relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+            <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
+              <CardHeader className="border-b border-white/10 pb-4">
+                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  <PieChart className="h-5 w-5 text-purple-400" />
+                  Validação
+                </CardTitle>
+                <CardDescription className="text-gray-400 text-xs">Status dos ingressos</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ResponsiveContainer width="100%" height={220}>
+                  <RechartsPie data={stats.eventStats} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={2} dataKey="value">
+                    {stats.eventStats.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </RechartsPie>
+                </ResponsiveContainer>
+                <div className="mt-6 space-y-3">
+                  {stats.eventStats.map((stat, i) => (
+                    <div key={i} className="flex items-center justify-between p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{backgroundColor: stat.color}}></div>
+                        <span className="text-sm text-gray-300">{stat.name}</span>
+                      </div>
+                      <span className="font-bold text-white">{stat.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Ações Rápidas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="border-border/50 shadow-lg hover:shadow-xl transition-all cursor-pointer hover:border-primary/50" onClick={() => navigate("/scanner")}>
-            <CardHeader>
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <QrCode className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Scanner de QR</CardTitle>
-                  <CardDescription className="text-xs">Validar ingressos</CardDescription>
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          {[
+            { icon: QrCode, label: 'Scanner QR', desc: 'Validar ingressos', color: 'from-blue-500 to-cyan-500', path: '/scanner', lightColor: 'blue' },
+            { icon: Calendar, label: 'Eventos', desc: 'Gerenciar eventos', color: 'from-purple-500 to-violet-500', path: '/events', lightColor: 'purple' },
+            { icon: Clock, label: 'Histórico', desc: 'Ver validações', color: 'from-emerald-500 to-green-500', path: '/history', lightColor: 'emerald' }
+          ].map((action, idx) => {
+            const Icon = action.icon;
+            const colorValues = {
+              'blue': { gradStart: '59, 130, 246', icon: '#06b6d4' },
+              'purple': { gradStart: '147, 51, 234', icon: '#a78bfa' },
+              'emerald': { gradStart: '16, 185, 129', icon: '#10b981' }
+            };
+            const colors = colorValues[action.lightColor as keyof typeof colorValues];
+            
+            return (
+              <div key={idx} className="group cursor-pointer" onClick={() => navigate(action.path)}>
+                <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 rounded-2xl blur-xl transition-all duration-500" style={{backgroundImage: `linear-gradient(to bottom right, rgba(${colors.gradStart}, 0.3), rgba(0, 0, 0, 0))`}}></div>
+                <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-300 cursor-pointer overflow-hidden h-full">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-base font-bold text-white">{action.label}</CardTitle>
+                        <CardDescription className="text-gray-400 text-xs">{action.desc}</CardDescription>
+                      </div>
+                      <div className={`p-3 bg-gradient-to-br ${action.color} bg-opacity-20 rounded-xl backdrop-blur-sm border border-white/10`}>
+                        <Icon className="h-6 w-6" style={{color: colors.icon}} />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Button className={`w-full bg-gradient-to-r ${action.color} hover:shadow-lg text-white border-0 transition-all`} size="sm">
+                      Abrir →
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" size="sm">
-                Abrir Scanner
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50 shadow-lg hover:shadow-xl transition-all cursor-pointer hover:border-primary/50" onClick={() => navigate("/events")}>
-            <CardHeader>
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <Calendar className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Gerenciar Eventos</CardTitle>
-                  <CardDescription className="text-xs">Criar e editar eventos</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" size="sm">
-                Eventos
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50 shadow-lg hover:shadow-xl transition-all cursor-pointer hover:border-primary/50" onClick={() => navigate("/history")}>
-            <CardHeader>
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <FileText className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Histórico</CardTitle>
-                  <CardDescription className="text-xs">Validações realizadas</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" variant="outline" size="sm">
-                Ver Histórico
-              </Button>
-            </CardContent>
-          </Card>
+            );
+          })}
         </div>
 
-        {/* Eventos Recentes */}
-        {stats.events.length > 0 && (
-          <Card className="border-border/50 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Eventos Recentes
-              </CardTitle>
-              <CardDescription>Últimos eventos cadastrados</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {stats.events.slice(0, 5).map(event => (
-                  <div key={event.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-sm">{event.title}</h4>
-                      <p className="text-xs text-muted-foreground">{event.location}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-primary">
-                        R$ {event.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{event.available_tickets} ingressos</p>
-                    </div>
+        {/* Top Eventos + Resumo */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+          {/* Top Eventos */}
+          {stats.topEvents.length > 0 && (
+            <div className="lg:col-span-2 group relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 to-orange-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+              <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
+                <CardHeader className="border-b border-white/10 pb-4">
+                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-yellow-400" />
+                    Top Eventos
+                  </CardTitle>
+                  <CardDescription className="text-gray-400 text-xs">Ranking por receita</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="space-y-3">
+                    {stats.topEvents.map((event: any, i) => (
+                      <div key={i} className="group/item flex items-center gap-3 p-4 bg-gradient-to-r from-white/5 to-transparent rounded-xl hover:from-white/10 hover:to-white/5 transition-all border border-white/5 hover:border-white/10">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-500/20 to-orange-500/10 border border-yellow-500/30">
+                          <span className="text-sm font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">{i + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-white text-sm truncate">{event.title}</h4>
+                          <p className="text-xs text-gray-500">🎫 {event.tickets} ingressos</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-sm font-bold bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
+                            R$ {(event.revenue / 1000).toFixed(1)}K
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Resumo */}
+          <div className="group relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-blue-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+            <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
+              <CardHeader className="border-b border-white/10 pb-4">
+                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-cyan-400" />
+                  Resumo
+                </CardTitle>
+                <CardDescription className="text-gray-400 text-xs">Semanalmente</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-medium text-gray-400">Receita Semanal</span>
+                    <span className="text-lg font-bold bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
+                      R$ {stats.weekRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 0})}
+                    </span>
+                  </div>
+                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent"></div>
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-medium text-gray-400">Total Eventos</span>
+                    <span className="text-lg font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                      {stats.totalEvents}
+                    </span>
+                  </div>
+                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent"></div>
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-medium text-gray-400">Ingressos Válidos</span>
+                    <span className="text-lg font-bold bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
+                      {stats.validCheckins}
+                    </span>
+                  </div>
+                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent"></div>
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-medium text-gray-400">Ingressos Inválidos</span>
+                    <span className="text-lg font-bold bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent">
+                      {stats.invalidCheckins}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Todos Eventos Grid */}
+        {stats.events.length > 0 && (
+          <div className="group relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+            <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
+              <CardHeader className="border-b border-white/10 pb-4">
+                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-indigo-400" />
+                  Todos os Eventos <span className="text-sm font-normal text-gray-500">({stats.events.length})</span>
+                </CardTitle>
+                <CardDescription className="text-gray-400 text-xs">Lista completa de eventos</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {stats.events.map((event, idx) => (
+                    <div key={event.id} className="group/card relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] hover:from-white/10 hover:to-white/5 transition-all p-4 hover:border-white/20">
+                      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-2xl opacity-0 group-hover/card:opacity-100 transition-opacity"></div>
+                      <div className="relative">
+                        <div className="flex items-start justify-between mb-3">
+                          <h4 className="font-bold text-white text-sm line-clamp-2">{event.title}</h4>
+                          <span className="text-xs font-semibold text-blue-400 bg-blue-500/20 px-2 py-1 rounded-full flex-shrink-0">#{idx + 1}</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-3 line-clamp-1">📍 {event.location}</p>
+                        <div className="flex justify-between items-center pt-3 border-t border-white/10">
+                          <span className="text-sm font-bold bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
+                            R$ {event.price.toLocaleString('pt-BR')}
+                          </span>
+                          <span className="text-xs text-gray-400">🎫 {event.available_tickets}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </main>
     </div>
