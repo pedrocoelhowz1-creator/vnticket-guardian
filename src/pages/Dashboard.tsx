@@ -183,6 +183,8 @@ const Dashboard = () => {
         events: eventMap.get(v.event_id) || eventMap.get(v.id_evento)
       }));
 
+      console.log('📦 Primeira venda:', vendas?.[0]);
+
       // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
         vendas = vendas.filter((v: any) => v.events?.producer_id === userId);
