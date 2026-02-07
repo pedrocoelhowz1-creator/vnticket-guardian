@@ -167,50 +167,15 @@ const Dashboard = () => {
         events: eventMap.get(t.event_id)
       }));
 
-      // Buscar vendas (purchases ou vendas)
-      let vendasRaw = [];
-      let vendasError = null;
-      
-      // Tentar purchases primeiro (sem filtro por enquanto)
-      const purchasesResult = await supabase
+      // Buscar vendas apenas da tabela PURCHASES
+      const { data: vendasRaw, error: vendasError } = await supabase
         .from('purchases')
         .select('*');
-      
-      console.log('📌 Resultado purchases (erro):', purchasesResult.error);
-      console.log('📌 Resultado purchases (data length):', purchasesResult.data?.length);
-      
-      // Contar TODAS as vendas (mesmo bloqueadas por RLS)
-      const countResult = await supabase
-        .from('purchases')
-        .select('*', { count: 'exact', head: true });
-      console.log('📌 Total de vendas PURCHASES na tabela:', countResult.count);
-      
-      if (!purchasesResult.error && purchasesResult.data?.length > 0) {
-        vendasRaw = purchasesResult.data;
-        console.log('✅ Vendas carregadas de PURCHASES:', vendasRaw?.length);
-      } else {
-        // Se purchases vazio, tentar vendas
-        console.log('📌 PURCHASES vazio, tentando tabela VENDAS...');
-        const vendasResult = await supabase
-          .from('vendas')
-          .select('*');
-        
-        const vendasCount = await supabase
-          .from('vendas')
-          .select('*', { count: 'exact', head: true });
-        console.log('📌 Total de vendas VENDAS na tabela:', vendasCount.count);
-        console.log('📌 Resultado vendas (data length):', vendasResult.data?.length);
-        
-        vendasRaw = vendasResult.data || [];
-        vendasError = vendasResult.error;
-        console.log('✅ Vendas carregadas de VENDAS:', vendasRaw?.length);
-      }
 
       if (vendasError) {
-        console.warn('⚠️ Erro ao buscar vendas:', vendasError);
+        console.warn('⚠️ Erro ao buscar purchases:', vendasError);
       }
-
-      console.log('📌 Resultado (data):', vendasRaw);
+      console.log('✅ Vendas carregadas de PURCHASES:', vendasRaw?.length);
 
       // Enriquecer vendas com dados de eventos (assumindo que tem event_id ou similar)
       let vendas = (vendasRaw || []).map((v: any) => ({
