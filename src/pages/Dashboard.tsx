@@ -319,6 +319,14 @@ const Dashboard = () => {
         { name: 'Inválidos', value: invalidCheckins, color: '#ef4444' }
       ];
 
+      console.log('💰 Stats calculados:', {
+        totalRevenue,
+        totalTickets,
+        todayRevenue,
+        weekRevenue,
+        vendas: vendas?.length
+      });
+
       setStats({
         totalEvents: events?.length || 0,
         totalSales: totalTickets,
@@ -337,6 +345,7 @@ const Dashboard = () => {
         events: events || [],
         lastUpdated: new Date()
       });
+      console.log('✅ Stats aplicados com sucesso!');
     } catch (error) {
       console.error('❌ Erro loading stats:', error);
       toast({
