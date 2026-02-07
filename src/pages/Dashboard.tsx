@@ -171,25 +171,23 @@ const Dashboard = () => {
       let vendasRaw = [];
       let vendasError = null;
       
-      // Tentar purchases primeiro
+      // Tentar purchases primeiro (sem filtro por enquanto)
       const purchasesResult = await supabase
         .from('purchases')
-        .select('*')
-        .eq('status', 'paid');
+        .select('*');
       
       if (!purchasesResult.error && purchasesResult.data?.length > 0) {
         vendasRaw = purchasesResult.data;
-        console.log('✅ Vendas carregadas de PURCHASES (paid):', vendasRaw?.length);
+        console.log('✅ Vendas carregadas de PURCHASES:', vendasRaw?.length);
       } else {
         // Se purchases vazio, tentar vendas
         const vendasResult = await supabase
           .from('vendas')
-          .select('*')
-          .eq('status', 'paid');
+          .select('*');
         
         vendasRaw = vendasResult.data || [];
         vendasError = vendasResult.error;
-        console.log('✅ Vendas carregadas de VENDAS (paid):', vendasRaw?.length);
+        console.log('✅ Vendas carregadas de VENDAS:', vendasRaw?.length);
       }
 
       if (vendasError) {
@@ -202,10 +200,21 @@ const Dashboard = () => {
         events: eventMap.get(v.event_id) || eventMap.get(v.id_evento)
       }));
 
+      // Inspecionar primeiro registro para descobrir campos de status
       if (vendas?.[0]) {
         console.log('📦 Primeira venda - Campos:', Object.keys(vendas[0]));
-        console.log('📦 Primeira venda - Dados:', vendas[0]);
+        console.log('📦 Primeira venda - Status?:', vendas[0]?.status);
+        console.log('📦 Primeira venda - Paid?:', vendas[0]?.paid);
+        console.log('📦 Primeira venda - Pago?:', vendas[0]?.pago);
+        console.log('📦 Primeira venda - Dados completos:', vendas[0]);
       }
+
+      // Filtrar apenas vendas pagas
+      vendas = vendas.filter((v: any) => {
+        // Verificar múltiplos campos possíveis de status
+        return v?.status === 'paid' || v?.status === 'pago' || v?.paid === true || v?.pago === true;
+      });
+      console.log('📦 Vendas após filtro de status:', vendas?.length);
 
       // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
