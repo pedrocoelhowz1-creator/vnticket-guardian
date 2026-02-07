@@ -549,9 +549,9 @@ const Dashboard = () => {
             const colors = colorValues[action.lightColor as keyof typeof colorValues];
             
             return (
-              <div key={idx} className="group cursor-pointer" onClick={() => navigate(action.path)}>
+              <div key={idx} className="group">
                 <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 rounded-2xl blur-xl transition-all duration-500" style={{backgroundImage: `linear-gradient(to bottom right, rgba(${colors.gradStart}, 0.3), rgba(0, 0, 0, 0))`}}></div>
-                <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-300 cursor-pointer overflow-hidden h-full">
+                <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 transition-all duration-300 overflow-hidden h-full">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
