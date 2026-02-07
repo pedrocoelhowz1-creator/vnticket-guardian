@@ -122,6 +122,7 @@ const Dashboard = () => {
 
       const { data: events, error: eventsError } = await eventsQuery;
       if (eventsError) throw eventsError;
+      console.log('✅ Events carregados:', events?.length);
 
       // Criar mapa de eventos para lookup rápido
       const eventMap = new Map();
@@ -135,6 +136,7 @@ const Dashboard = () => {
         .select('id, id_compra, id_evento, id_ingresso, buyer_email, validated_by, validated_at, status, reason, qr_payload');
 
       if (checkinsError) throw checkinsError;
+      console.log('✅ Checkins carregados:', checkinsRaw?.length);
 
       // Enriquecer checkins com dados de eventos
       let checkins = (checkinsRaw || []).map((c: any) => ({
@@ -166,8 +168,9 @@ const Dashboard = () => {
         .select('*');
 
       if (vendasError) {
-        console.warn('Erro ao buscar vendas:', vendasError);
+        console.warn('⚠️ Erro ao buscar vendas:', vendasError);
       }
+      console.log('✅ Vendas carregadas:', vendasRaw?.length);
 
       // Enriquecer vendas com dados de eventos (assumindo que tem event_id ou similar)
       let vendas = (vendasRaw || []).map((v: any) => ({
