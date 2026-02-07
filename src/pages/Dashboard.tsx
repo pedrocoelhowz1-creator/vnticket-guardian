@@ -223,16 +223,22 @@ const Dashboard = () => {
           new Date(c.validated_at) >= dayStart && new Date(c.validated_at) <= dayEnd
         ) || [];
 
+        const dayManualTickets = manualTickets?.filter(t =>
+          new Date(t.created_at) >= dayStart && new Date(t.created_at) <= dayEnd
+        ) || [];
+
         const dayRevenue = dayCheckins.reduce((sum, c: any) => {
           const eventPrice = c.events?.price || 0;
           const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
           return sum + eventPrice + fee;
-        }, 0);
+        }, 0) + dayManualTickets.reduce((sum, t: any) => sum + (t.price || 0), 0);
+
+        const dayTickets = dayCheckins.length + dayManualTickets.length;
 
         chartData.push({
           date: date.toLocaleDateString('pt-BR', { weekday: 'short', month: 'numeric', day: 'numeric' }),
           revenue: dayRevenue,
-          tickets: dayCheckins.length
+          tickets: dayTickets
         });
       }
 
