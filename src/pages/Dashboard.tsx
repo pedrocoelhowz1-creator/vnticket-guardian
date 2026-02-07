@@ -193,6 +193,10 @@ const Dashboard = () => {
 
       console.log('📊 Total de vendas carregadas:', vendas?.length);
 
+      // Filtrar APENAS vendas com status='paid'
+      vendas = vendas.filter((v: any) => v?.status === 'paid');
+      console.log('📊 Vendas com status paid:', vendas?.length);
+
       // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
         vendas = vendas.filter((v: any) => v.events?.producer_id === userId);
