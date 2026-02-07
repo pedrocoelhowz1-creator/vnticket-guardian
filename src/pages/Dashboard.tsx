@@ -208,9 +208,13 @@ const Dashboard = () => {
         console.log('📦 Primeira venda - Quantity:', vendas[0]?.quantity);
       }
 
+      // Mostrar TODOS os status
+      console.log('📊 Todos os status das vendas:', vendas?.map((v: any) => v?.status));
+      
       // Filtrar APENAS vendas com status='paid'
       vendas = vendas.filter((v: any) => v?.status === 'paid');
-      console.log('📦 Vendas com status paid:', vendas?.length);
+      console.log('📦 Vendas com status paid após filtro:', vendas?.length);
+      console.log('💰 Total amount das vendas pagas:', vendas?.map((v: any) => v?.total_amount));
 
       // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
