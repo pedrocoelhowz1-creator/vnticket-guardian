@@ -158,6 +158,13 @@ const Dashboard = () => {
         events: eventMap.get(t.event_id)
       }));
 
+      // Debug log
+      console.log('Admin Master:', isAdminMaster);
+      console.log('Events:', events?.length);
+      console.log('Checkins:', checkins?.length);
+      console.log('Manual Tickets:', manualTickets?.length);
+      console.log('Manual Tickets Raw:', manualTicketsRaw);
+
       // Filtrar tickets do produtor se não for admin master
       if (!isAdminMaster && userId) {
         manualTickets = manualTickets.filter((t: any) => t.events?.producer_id === userId);
