@@ -150,11 +150,16 @@ const Dashboard = () => {
       }
 
       // Buscar vendas manuais (sem tentar fazer join)
+      console.log('📌 Buscando manual_tickets...');
       const { data: manualTicketsRaw, error: ticketsError } = await supabase
         .from('manual_tickets')
         .select('id, event_id, buyer_name, buyer_cpf, buyer_phone, payment_method, sale_type, sale_origin, qr_generated, qr_payload, status, price, created_by, created_at, used_at');
 
-      if (ticketsError) throw ticketsError;
+      if (ticketsError) {
+        console.error('❌ Erro ao buscar manual_tickets:', ticketsError);
+        throw ticketsError;
+      }
+      console.log('✅ Manual Tickets carregados:', manualTicketsRaw?.length);
 
       // Enriquecer manual_tickets com dados de eventos
       let manualTickets = (manualTicketsRaw || []).map((t: any) => ({
