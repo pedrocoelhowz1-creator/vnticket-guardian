@@ -183,19 +183,23 @@ const Dashboard = () => {
       const countResult = await supabase
         .from('purchases')
         .select('*', { count: 'exact', head: true });
-      console.log('📌 Total de vendas na tabela (count exact):', countResult.count);
-      console.log('📌 Vendas retornadas pelo RLS:', purchasesResult.data?.length);
-      
-      console.log('📌 Resultado purchases (data):', purchasesResult.data);
+      console.log('📌 Total de vendas PURCHASES na tabela:', countResult.count);
       
       if (!purchasesResult.error && purchasesResult.data?.length > 0) {
         vendasRaw = purchasesResult.data;
         console.log('✅ Vendas carregadas de PURCHASES:', vendasRaw?.length);
       } else {
         // Se purchases vazio, tentar vendas
+        console.log('📌 PURCHASES vazio, tentando tabela VENDAS...');
         const vendasResult = await supabase
           .from('vendas')
           .select('*');
+        
+        const vendasCount = await supabase
+          .from('vendas')
+          .select('*', { count: 'exact', head: true });
+        console.log('📌 Total de vendas VENDAS na tabela:', vendasCount.count);
+        console.log('📌 Resultado vendas (data length):', vendasResult.data?.length);
         
         vendasRaw = vendasResult.data || [];
         vendasError = vendasResult.error;
@@ -205,6 +209,8 @@ const Dashboard = () => {
       if (vendasError) {
         console.warn('⚠️ Erro ao buscar vendas:', vendasError);
       }
+
+      console.log('📌 Resultado (data):', vendasRaw);
 
       // Enriquecer vendas com dados de eventos (assumindo que tem event_id ou similar)
       let vendas = (vendasRaw || []).map((v: any) => ({
