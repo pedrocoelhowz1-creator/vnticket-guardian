@@ -20,18 +20,23 @@ CREATE TABLE IF NOT EXISTS public.manual_tickets (
 -- Enable Row Level Security
 ALTER TABLE public.manual_tickets ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Authenticated users can view manual tickets" ON public.manual_tickets;
+DROP POLICY IF EXISTS "Authenticated users can insert manual tickets" ON public.manual_tickets;
+DROP POLICY IF EXISTS "Authenticated users can update their tickets" ON public.manual_tickets;
+
 -- Create policies for user access
-CREATE POLICY IF NOT EXISTS "Authenticated users can view manual tickets" 
+CREATE POLICY "Authenticated users can view manual tickets" 
 ON public.manual_tickets 
 FOR SELECT 
 USING (true);
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can insert manual tickets" 
+CREATE POLICY "Authenticated users can insert manual tickets" 
 ON public.manual_tickets 
 FOR INSERT 
 WITH CHECK (auth.uid() = created_by);
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can update their tickets" 
+CREATE POLICY "Authenticated users can update their tickets" 
 ON public.manual_tickets 
 FOR UPDATE 
 USING (auth.uid() = created_by);
