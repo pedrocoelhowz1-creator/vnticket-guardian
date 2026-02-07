@@ -167,15 +167,16 @@ const Dashboard = () => {
         events: eventMap.get(t.event_id)
       }));
 
-      // Buscar vendas
+      // Buscar vendas (purchases)
       const { data: vendasRaw, error: vendasError } = await supabase
-        .from('vendas')
-        .select('*');
+        .from('purchases')
+        .select('*')
+        .eq('status', 'paid');
 
       if (vendasError) {
-        console.warn('⚠️ Erro ao buscar vendas:', vendasError);
+        console.warn('⚠️ Erro ao buscar purchases:', vendasError);
       }
-      console.log('✅ Vendas carregadas:', vendasRaw?.length);
+      console.log('✅ Vendas (purchases) carregadas:', vendasRaw?.length);
 
       // Enriquecer vendas com dados de eventos (assumindo que tem event_id ou similar)
       let vendas = (vendasRaw || []).map((v: any) => ({
@@ -212,7 +213,7 @@ const Dashboard = () => {
         const eventPrice = c.events?.price || 0;
         const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
         return sum + eventPrice + fee;
-      }, 0) + (manualTickets || []).reduce((sum, t: any) => sum + (t.price || 0), 0) + (vendas || []).reduce((sum, v: any) => sum + (v.price || v.valor || 0), 0);
+      }, 0) + (manualTickets || []).reduce((sum, t: any) => sum + (t.price || 0), 0) + (vendas || []).reduce((sum, v: any) => sum + (v.total_amount || 0), 0);
 
       const todayRevenue = todayCheckins.reduce((sum, c: any) => {
         const eventPrice = c.events?.price || 0;
@@ -226,7 +227,7 @@ const Dashboard = () => {
         const v_date = new Date(v.created_at || v.data_venda);
         v_date.setHours(0, 0, 0, 0);
         return v_date >= today;
-      }).reduce((sum, v: any) => sum + (v.price || v.valor || 0), 0) || 0);
+      }).reduce((sum, v: any) => sum + (v.total_amount || 0), 0) || 0);
 
       const weekRevenue = weekCheckins.reduce((sum, c: any) => {
         const eventPrice = c.events?.price || 0;
@@ -240,9 +241,9 @@ const Dashboard = () => {
         const v_date = new Date(v.created_at || v.data_venda);
         v_date.setHours(0, 0, 0, 0);
         return v_date >= weekAgo && v_date <= today;
-      }).reduce((sum, v: any) => sum + (v.price || v.valor || 0), 0) || 0);
+      }).reduce((sum, v: any) => sum + (v.total_amount || 0), 0) || 0);
 
-      const totalTickets = (checkins?.length || 0) + (manualTickets?.length || 0) + (vendas?.length || 0);
+      const totalTickets = (checkins?.length || 0) + (manualTickets?.length || 0) + (vendas?.reduce((sum, v: any) => sum + (v.quantity || 1), 0) || 0);
       const todaySales = todayCheckins.length + (manualTickets?.filter(t => {
         const t_date = new Date(t.created_at);
         t_date.setHours(0, 0, 0, 0);
@@ -251,7 +252,7 @@ const Dashboard = () => {
         const v_date = new Date(v.created_at || v.data_venda);
         v_date.setHours(0, 0, 0, 0);
         return v_date >= today;
-      }).length || 0);
+      }).reduce((sum, v: any) => sum + (v.quantity || 1), 0) || 0);
 
       const conversionRate = totalTickets > 0 ? (validCheckins / totalTickets) * 100 : 0;
       const avgTicketPrice = totalTickets > 0 ? totalRevenue / totalTickets : 0;
@@ -283,9 +284,9 @@ const Dashboard = () => {
           const eventPrice = c.events?.price || 0;
           const fee = c.events?.has_fee ? (eventPrice * 0.10) : 0;
           return sum + eventPrice + fee;
-        }, 0) + dayManualTickets.reduce((sum, t: any) => sum + (t.price || 0), 0) + dayVendas.reduce((sum, v: any) => sum + (v.price || v.valor || 0), 0);
+        }, 0) + dayManualTickets.reduce((sum, t: any) => sum + (t.price || 0), 0) + dayVendas.reduce((sum, v: any) => sum + (v.total_amount || 0), 0);
 
-        const dayTickets = dayCheckins.length + dayManualTickets.length + dayVendas.length;
+        const dayTickets = dayCheckins.length + dayManualTickets.length + (dayVendas?.reduce((sum, v: any) => sum + (v.quantity || 1), 0) || 0);
 
         chartData.push({
           date: date.toLocaleDateString('pt-BR', { weekday: 'short', month: 'numeric', day: 'numeric' }),
