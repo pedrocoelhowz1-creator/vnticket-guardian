@@ -145,8 +145,23 @@ const Dashboard = () => {
         checkins = checkins.filter((c: any) => c.events?.producer_id === userId);
       }
 
-      // Manual tickets - será adicionado quando tabela existir
-      let manualTickets: any[] = [];
+      // Buscar vendas manuais (sem tentar fazer join)
+      const { data: manualTicketsRaw, error: ticketsError } = await supabase
+        .from('manual_tickets')
+        .select('id, event_id, buyer_name, buyer_cpf, buyer_phone, payment_method, sale_type, sale_origin, qr_generated, qr_payload, status, price, created_by, created_at, used_at');
+
+      if (ticketsError) throw ticketsError;
+
+      // Enriquecer manual_tickets com dados de eventos
+      let manualTickets = (manualTicketsRaw || []).map((t: any) => ({
+        ...t,
+        events: eventMap.get(t.event_id)
+      }));
+
+      // Filtrar tickets do produtor se não for admin master
+      if (!isAdminMaster && userId) {
+        manualTickets = manualTickets.filter((t: any) => t.events?.producer_id === userId);
+      }
 
       // Calcular estatísticas
       const today = new Date();
