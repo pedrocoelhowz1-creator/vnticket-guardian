@@ -176,6 +176,10 @@ const Dashboard = () => {
         .from('purchases')
         .select('*');
       
+      console.log('📌 Resultado purchases (erro):', purchasesResult.error);
+      console.log('📌 Resultado purchases (data length):', purchasesResult.data?.length);
+      console.log('📌 Resultado purchases (data):', purchasesResult.data);
+      
       if (!purchasesResult.error && purchasesResult.data?.length > 0) {
         vendasRaw = purchasesResult.data;
         console.log('✅ Vendas carregadas de PURCHASES:', vendasRaw?.length);
@@ -209,12 +213,12 @@ const Dashboard = () => {
       }
 
       // Mostrar TODOS os status
+      console.log('📊 Total de vendas ANTES filtro:', vendas?.length);
       console.log('📊 Todos os status das vendas:', vendas?.map((v: any) => v?.status));
       
       // Filtrar APENAS vendas com status='paid'
       vendas = vendas.filter((v: any) => v?.status === 'paid');
       console.log('📦 Vendas com status paid após filtro:', vendas?.length);
-      console.log('💰 Total amount das vendas pagas:', vendas?.map((v: any) => v?.total_amount));
 
       // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
