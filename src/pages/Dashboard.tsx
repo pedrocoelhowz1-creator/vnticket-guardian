@@ -176,9 +176,6 @@ const Dashboard = () => {
       if (vendasError) {
         console.warn('⚠️ Erro ao buscar purchases:', vendasError);
       }
-      console.log('✅ Vendas carregadas de PURCHASES:', vendasRaw?.length);
-      console.log('💳 Todas as vendas (com limit 1000):', vendasRaw);
-      console.log('📊 Status de cada venda:', vendasRaw?.map((v: any) => ({ id: v.id, status: v.status, total_amount: v.total_amount })));
 
       // Enriquecer vendas com dados de eventos (assumindo que tem event_id ou similar)
       let vendas = (vendasRaw || []).map((v: any) => ({
@@ -194,12 +191,7 @@ const Dashboard = () => {
         console.log('📦 Primeira venda - Quantity:', vendas[0]?.quantity);
       }
 
-      // Mostrar TODOS os status
-      console.log('📊 Total de vendas ANTES filtro:', vendas?.length);
-      console.log('📊 Todos os status das vendas:', vendas?.map((v: any) => v?.status));
-      
-      // SEM FILTRO - mostrar TODAS as vendas
-      console.log('📦 Todas as vendas (sem filtro de status):', vendas?.length);
+      console.log('📊 Total de vendas carregadas:', vendas?.length);
 
       // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
