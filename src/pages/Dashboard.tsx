@@ -167,16 +167,32 @@ const Dashboard = () => {
         events: eventMap.get(t.event_id)
       }));
 
-      // Buscar vendas (purchases)
-      const { data: vendasRaw, error: vendasError } = await supabase
+      // Buscar vendas (purchases ou vendas)
+      let vendasRaw = [];
+      let vendasError = null;
+      
+      // Tentar purchases primeiro
+      const purchasesResult = await supabase
         .from('purchases')
-        .select('*')
-        .eq('status', 'paid');
+        .select('*');
+      
+      if (!purchasesResult.error && purchasesResult.data?.length > 0) {
+        vendasRaw = purchasesResult.data;
+        console.log('✅ Vendas carregadas de PURCHASES:', vendasRaw?.length);
+      } else {
+        // Se purchases vazio, tentar vendas
+        const vendasResult = await supabase
+          .from('vendas')
+          .select('*');
+        
+        vendasRaw = vendasResult.data || [];
+        vendasError = vendasResult.error;
+        console.log('✅ Vendas carregadas de VENDAS:', vendasRaw?.length);
+      }
 
       if (vendasError) {
-        console.warn('⚠️ Erro ao buscar purchases:', vendasError);
+        console.warn('⚠️ Erro ao buscar vendas:', vendasError);
       }
-      console.log('✅ Vendas (purchases) carregadas:', vendasRaw?.length);
 
       // Enriquecer vendas com dados de eventos (assumindo que tem event_id ou similar)
       let vendas = (vendasRaw || []).map((v: any) => ({
@@ -184,7 +200,10 @@ const Dashboard = () => {
         events: eventMap.get(v.event_id) || eventMap.get(v.id_evento)
       }));
 
-      console.log('📦 Primeira venda:', vendas?.[0]);
+      if (vendas?.[0]) {
+        console.log('📦 Primeira venda - Campos:', Object.keys(vendas[0]));
+        console.log('📦 Primeira venda - Dados:', vendas[0]);
+      }
 
       // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
