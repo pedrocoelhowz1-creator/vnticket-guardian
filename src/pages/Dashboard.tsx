@@ -468,7 +468,7 @@ const Dashboard = () => {
                   <div>
                     <CardTitle className="text-sm font-semibold text-gray-300 mb-1">Receita Total</CardTitle>
                     <div className="text-4xl font-black bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
-                      R$ {(stats.totalRevenue / 1000).toFixed(1)}K
+                      R$ {stats.totalRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </div>
                   </div>
                   <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-green-500/10 rounded-xl backdrop-blur-sm border border-emerald-500/20">
@@ -704,7 +704,7 @@ const Dashboard = () => {
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-sm font-bold bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
-                            R$ {(event.revenue / 1000).toFixed(1)}K
+                            R$ {event.revenue.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                           </p>
                         </div>
                       </div>
