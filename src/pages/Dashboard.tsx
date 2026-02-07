@@ -109,6 +109,8 @@ const Dashboard = () => {
 
   const loadStats = async (isAdminMaster: boolean, userId: string) => {
     try {
+      console.log('📊 loadStats iniciando:', { isAdminMaster, userId });
+      
       // Buscar eventos
       let eventsQuery = supabase
         .from('events')
@@ -328,7 +330,7 @@ const Dashboard = () => {
         lastUpdated: new Date()
       });
     } catch (error) {
-      console.error('Error loading stats:', error);
+      console.error('❌ Erro loading stats:', error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar as estatísticas",
