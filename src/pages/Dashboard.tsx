@@ -356,8 +356,7 @@ const Dashboard = () => {
         {/* KPIs Ultra Premium - 4 Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {/* Receita Total */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/30 via-green-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+          <div className="relative">
             <Card className="relative border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-xl shadow-2xl transition-all duration-300 overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
@@ -382,8 +381,7 @@ const Dashboard = () => {
           </div>
 
           {/* Receita Hoje */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/30 via-cyan-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+          <div className="relative">
             <Card className="relative border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-xl shadow-2xl transition-all duration-300 overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
@@ -408,8 +406,7 @@ const Dashboard = () => {
           </div>
 
           {/* Taxa Conversão */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/30 via-violet-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+          <div className="relative">
             <Card className="relative border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-xl shadow-2xl transition-all duration-300 overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
@@ -434,8 +431,7 @@ const Dashboard = () => {
           </div>
 
           {/* Preço Médio */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/30 via-amber-500/10 to-transparent rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+          <div className="relative">
             <Card className="relative border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-xl shadow-2xl transition-all duration-300 overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
@@ -463,8 +459,7 @@ const Dashboard = () => {
         {/* Gráficos - Row Grande */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
           {/* Gráfico Receita */}
-          <div className="lg:col-span-2 group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-cyan-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+          <div className="lg:col-span-2 relative">
             <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
               <CardHeader className="border-b border-white/10 pb-4">
                 <div className="flex items-center justify-between">
@@ -505,8 +500,7 @@ const Dashboard = () => {
           </div>
 
           {/* Pie Chart */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+          <div className="relative">
             <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
               <CardHeader className="border-b border-white/10 pb-4">
                 <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
@@ -584,8 +578,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
           {/* Top Eventos */}
           {stats.topEvents.length > 0 && (
-            <div className="lg:col-span-2 group relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 to-orange-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+            <div className="lg:col-span-2 relative">
               <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
                 <CardHeader className="border-b border-white/10 pb-4">
                   <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
@@ -619,8 +612,7 @@ const Dashboard = () => {
           )}
 
           {/* Resumo */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-blue-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+          <div className="relative">
             <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
               <CardHeader className="border-b border-white/10 pb-4">
                 <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
@@ -672,8 +664,7 @@ const Dashboard = () => {
 
         {/* Todos Eventos Grid */}
         {stats.events.length > 0 && (
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-75 transition-all duration-500"></div>
+          <div className="relative">
             <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
               <CardHeader className="border-b border-white/10 pb-4">
                 <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
