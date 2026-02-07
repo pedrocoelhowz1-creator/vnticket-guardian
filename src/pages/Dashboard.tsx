@@ -204,17 +204,11 @@ const Dashboard = () => {
       if (vendas?.[0]) {
         console.log('📦 Primeira venda - Campos:', Object.keys(vendas[0]));
         console.log('📦 Primeira venda - Status?:', vendas[0]?.status);
-        console.log('📦 Primeira venda - Paid?:', vendas[0]?.paid);
-        console.log('📦 Primeira venda - Pago?:', vendas[0]?.pago);
-        console.log('📦 Primeira venda - Dados completos:', vendas[0]);
+        console.log('📦 Primeira venda - Total Amount:', vendas[0]?.total_amount);
+        console.log('📦 Primeira venda - Quantity:', vendas[0]?.quantity);
       }
 
-      // Filtrar apenas vendas pagas
-      vendas = vendas.filter((v: any) => {
-        // Verificar múltiplos campos possíveis de status
-        return v?.status === 'paid' || v?.status === 'pago' || v?.paid === true || v?.pago === true;
-      });
-      console.log('📦 Vendas após filtro de status:', vendas?.length);
+      console.log('📦 Vendas carregadas (sem filtro):', vendas?.length);
 
       // Filtrar vendas do produtor se não for admin master
       if (!isAdminMaster && userId) {
