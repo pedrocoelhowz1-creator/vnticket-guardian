@@ -698,6 +698,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
           {/* Top Eventos */}
           {stats.topEvents.length > 0 && (
+            <>
             <div className="lg:col-span-2 relative">
               <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
                 <CardHeader className="border-b border-white/10 pb-4">
@@ -788,6 +789,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             </div>
+            </>
           )}
 
           {/* Resumo */}
