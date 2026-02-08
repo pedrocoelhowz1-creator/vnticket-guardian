@@ -7,6 +7,7 @@ import AppLayout from "./components/layout/AppLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Sales from "./pages/Sales";
 import Scanner from "./pages/Scanner";
 import History from "./pages/History";
 import Events from "./pages/Events";
@@ -25,9 +26,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/sales" element={<Navigate to="/dashboard" replace />} />
           <Route element={<AppLayout><Outlet /></AppLayout>}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/sales" element={<Sales />} />
             <Route path="/scanner" element={<Scanner />} />
             <Route path="/history" element={<History />} />
             <Route path="/events" element={<Events />} />
