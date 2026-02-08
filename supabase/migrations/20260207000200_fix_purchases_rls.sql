@@ -4,6 +4,11 @@ ALTER TABLE public.purchases DISABLE ROW LEVEL SECURITY;
 -- Reabilitar com política permissiva para admins
 ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
 
+-- Remover políticas existentes (se já criadas)
+DROP POLICY IF EXISTS "Admin can view all purchases" ON public.purchases;
+DROP POLICY IF EXISTS "Anyone can insert purchases" ON public.purchases;
+DROP POLICY IF EXISTS "Owner can update purchases" ON public.purchases;
+
 -- Política para admin master ver TODAS as compras
 CREATE POLICY "Admin can view all purchases"
   ON public.purchases FOR SELECT
