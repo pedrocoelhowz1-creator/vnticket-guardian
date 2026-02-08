@@ -729,6 +729,65 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Tabela de Vendas Detalhadas */}
+            <div className="relative">
+              <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
+                <CardHeader className="border-b border-white/10 pb-4">
+                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                    <ShoppingCart className="h-5 w-5 text-purple-400" />
+                    Vendas Detalhadas
+                  </CardTitle>
+                  <CardDescription className="text-gray-400 text-xs">Todas as compras (status paid)</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left py-3 px-4 text-gray-400 font-semibold">Evento</th>
+                          <th className="text-center py-3 px-4 text-gray-400 font-semibold">Qtd</th>
+                          <th className="text-right py-3 px-4 text-gray-400 font-semibold">Valor</th>
+                          <th className="text-left py-3 px-4 text-gray-400 font-semibold">Comprador</th>
+                          <th className="text-left py-3 px-4 text-gray-400 font-semibold">Data</th>
+                          <th className="text-center py-3 px-4 text-gray-400 font-semibold">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.vendas && stats.vendas.length > 0 ? (
+                          stats.vendas.map((venda: any) => (
+                            <tr key={venda.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="py-3 px-4 text-white font-medium">{venda.events?.title || 'Evento Desconhecido'}</td>
+                              <td className="py-3 px-4 text-center text-gray-300">{venda.quantity || 1}</td>
+                              <td className="py-3 px-4 text-right text-emerald-400 font-semibold">R$ {(venda.total_amount || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                              <td className="py-3 px-4 text-gray-300">{venda.buyer_name || venda.buyer_email || 'N/A'}</td>
+                              <td className="py-3 px-4 text-gray-400 text-xs">{new Date(venda.created_at).toLocaleDateString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                              <td className="py-3 px-4 text-center">
+                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                  venda.status === 'paid' 
+                                    ? 'bg-emerald-500/20 text-emerald-400' 
+                                    : venda.status === 'pending'
+                                    ? 'bg-yellow-500/20 text-yellow-400'
+                                    : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                  {venda.status === 'paid' ? '✓ Pago' : venda.status === 'pending' ? '⏳ Pendente' : '✗ Cancelado'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="py-8 text-center text-gray-500">
+                              Nenhuma venda encontrada
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Resumo */}
@@ -812,65 +871,6 @@ const Dashboard = () => {
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Tabela de Vendas Detalhadas */}
-          <div className="relative">
-            <Card className="relative border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
-              <CardHeader className="border-b border-white/10 pb-4">
-                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5 text-purple-400" />
-                  Vendas Detalhadas
-                </CardTitle>
-                <CardDescription className="text-gray-400 text-xs">Todas as compras (status paid)</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-white/10">
-                        <th className="text-left py-3 px-4 text-gray-400 font-semibold">Evento</th>
-                        <th className="text-center py-3 px-4 text-gray-400 font-semibold">Qtd</th>
-                        <th className="text-right py-3 px-4 text-gray-400 font-semibold">Valor</th>
-                        <th className="text-left py-3 px-4 text-gray-400 font-semibold">Comprador</th>
-                        <th className="text-left py-3 px-4 text-gray-400 font-semibold">Data</th>
-                        <th className="text-center py-3 px-4 text-gray-400 font-semibold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.vendas && stats.vendas.length > 0 ? (
-                        stats.vendas.map((venda: any) => (
-                          <tr key={venda.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                            <td className="py-3 px-4 text-white font-medium">{venda.events?.title || 'Evento Desconhecido'}</td>
-                            <td className="py-3 px-4 text-center text-gray-300">{venda.quantity || 1}</td>
-                            <td className="py-3 px-4 text-right text-emerald-400 font-semibold">R$ {(venda.total_amount || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td className="py-3 px-4 text-gray-300">{venda.buyer_name || venda.buyer_email || 'N/A'}</td>
-                            <td className="py-3 px-4 text-gray-400 text-xs">{new Date(venda.created_at).toLocaleDateString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                            <td className="py-3 px-4 text-center">
-                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                venda.status === 'paid' 
-                                  ? 'bg-emerald-500/20 text-emerald-400' 
-                                  : venda.status === 'pending'
-                                  ? 'bg-yellow-500/20 text-yellow-400'
-                                  : 'bg-red-500/20 text-red-400'
-                              }`}>
-                                {venda.status === 'paid' ? '✓ Pago' : venda.status === 'pending' ? '⏳ Pendente' : '✗ Cancelado'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6} className="py-8 text-center text-gray-500">
-                            Nenhuma venda encontrada
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
                 </div>
               </CardContent>
             </Card>
