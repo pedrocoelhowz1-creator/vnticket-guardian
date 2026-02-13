@@ -95,14 +95,30 @@ const Sales = () => {
       const { data: purchases, error: purchasesError } = await supabase
         .from("purchases")
         .select("*")
-        .eq("status", "paid")
         .order("created_at", { ascending: false })
         .limit(500);
 
       if (purchasesError) throw purchasesError;
 
+      const normalizePurchaseStatus = (p: any) => {
+        const raw =
+          p.payment_status ||
+          p.paymentStatus ||
+          p.status ||
+          p.state ||
+          p.situacao ||
+          "";
+        const s = raw.toString().toLowerCase();
+        if (["paid", "pago", "confirmado", "confirmed", "approved", "aprovado"].includes(s)) return "paid";
+        if (["pending", "pendente", "processing", "aguardando"].includes(s)) return "pending";
+        if (["canceled", "cancelado", "refunded", "estornado"].includes(s)) return "canceled";
+        if (p.paid_at || p.payment_confirmed_at) return "paid";
+        return s || "pending";
+      };
+
       const salesFromPurchases = (purchases || []).map((p: any) => ({
         ...p,
+        status: normalizePurchaseStatus(p),
         events: eventMap.get(p.event_id),
         source: "purchases" as const
       }));
