@@ -255,90 +255,80 @@ const Sales = () => {
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 36;
 
-    // Dark background
-    doc.setFillColor(10, 16, 26);
+    // Background
+    doc.setFillColor(8, 10, 14);
     doc.rect(0, 0, pageWidth, pageHeight, "F");
-
-    // Accent bar
-    doc.setFillColor(34, 197, 94);
-    doc.rect(0, 0, pageWidth, 6, "F");
 
     // Header
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(255, 255, 255);
-    doc.text("VN TICKET", margin, 40);
-    doc.setFontSize(11);
-    doc.setTextColor(148, 163, 184);
-    doc.text("Ingresso Digital", margin, 58);
-
-    // Logo (top-right)
-    try {
-      const logoData = await fetchAsDataUrl(logo);
-      doc.addImage(logoData, "PNG", pageWidth - 120, 18, 80, 40);
-    } catch {}
-
-    // Card container
-    const cardX = margin;
-    const cardY = 80;
-    const cardW = pageWidth - margin * 2;
-    const cardH = 420;
-    doc.setFillColor(17, 24, 39);
-    doc.roundedRect(cardX, cardY, cardW, cardH, 12, 12, "F");
-
-    // Event image inside card (contain, no stretch)
-    const eventImage = sale.events?.image_url;
-    if (eventImage) {
-      try {
-        const imgData = await fetchAsDataUrl(eventImage);
-        const { width, height } = await getImageSize(imgData);
-        const maxW = cardW - 32;
-        const maxH = 160;
-        const scale = Math.min(maxW / width, maxH / height);
-        const drawW = width * scale;
-        const drawH = height * scale;
-        const drawX = cardX + 16 + (maxW - drawW) / 2;
-        const drawY = cardY + 16 + (maxH - drawH) / 2;
-        doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH);
-      } catch {}
-    }
-
-    const contentY = eventImage ? cardY + 190 : cardY + 20;
-    doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(255, 255, 255);
-    doc.text(sale.events?.title || "Evento", cardX + 20, contentY);
-
+    doc.text("VN TICKET", 36, 48);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    doc.setTextColor(203, 213, 225);
-    doc.text(`Comprador: ${sale.buyer_name || sale.buyer_email || "N/A"}`, cardX + 20, contentY + 22);
+    doc.setFontSize(10);
+    doc.setTextColor(148, 163, 184);
+    doc.text("MEU VOUCHER", 36, 66);
 
+    // Card (mobile style)
+    const cardW = Math.min(320, pageWidth - 72);
+    const cardH = 520;
+    const cardX = (pageWidth - cardW) / 2;
+    const cardY = 90;
+    doc.setFillColor(164, 18, 32); // deep red
+    doc.roundedRect(cardX, cardY, cardW, cardH, 18, 18, "F");
+
+    // Small cuts (ticket feel)
+    doc.setFillColor(8, 10, 14);
+    doc.circle(cardX, cardY + 90, 8, "F");
+    doc.circle(cardX + cardW, cardY + 90, 8, "F");
+
+    // Event title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    const title = (sale.events?.title || "Evento").toUpperCase();
+    doc.text(title, cardX + 18, cardY + 40, { maxWidth: cardW - 36 });
+
+    // Divider
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(0.8);
+    doc.line(cardX + 16, cardY + 70, cardX + cardW - 16, cardY + 70);
+
+    // Ticket info
     const ticketType = payload.ticket_type || sale.ticket_type || "N/A";
-    doc.text(`Tipo de ingresso: ${ticketType}`, cardX + 20, contentY + 40);
-
     const ticketIndex = payload.ticket_index || index + 1;
-    doc.text(`Ingresso: ${ticketIndex} de ${total}`, cardX + 20, contentY + 58);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("INGRESSO", cardX + 18, cardY + 98);
+    doc.text(`Tipo: ${ticketType}`, cardX + 18, cardY + 116);
+    doc.text(`Ingresso: ${ticketIndex} de ${total}`, cardX + 18, cardY + 134);
 
-    const sponsors = Array.isArray(sale.events?.sponsors) ? sale.events?.sponsors : [];
-    const sponsorsText = sponsors.length ? sponsors.join(", ") : "N/A";
-    doc.text(`Patrocinadores: ${sponsorsText}`, cardX + 20, contentY + 76);
+    // Buyer
+    doc.text("COMPRADOR", cardX + 18, cardY + 160);
+    doc.setFont("helvetica", "bold");
+    doc.text(sale.buyer_name || sale.buyer_email || "N/A", cardX + 18, cardY + 178, {
+      maxWidth: cardW - 36
+    });
 
     // QR block
+    const qrBoxSize = 200;
+    const qrBoxX = cardX + (cardW - qrBoxSize) / 2;
+    const qrBoxY = cardY + 210;
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 12, 12, "F");
+
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payloadBase64)}`;
     try {
       const qrData = await fetchAsDataUrl(qrUrl);
-      doc.setFillColor(255, 255, 255);
-      doc.roundedRect(cardX + 20, contentY + 100, 160, 160, 10, 10, "F");
-      doc.addImage(qrData, "PNG", cardX + 30, contentY + 110, 140, 140);
+      doc.addImage(qrData, "PNG", qrBoxX + 16, qrBoxY + 16, qrBoxSize - 32, qrBoxSize - 32);
     } catch {}
 
-    // Footer note
+    // Footer
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184);
-    doc.text("Apresente este QR na entrada. Uso único.", margin, pageHeight - 30);
+    doc.setTextColor(255, 255, 255);
+    doc.text("APRESENTE ESTE QR NA ENTRADA", cardX + 18, cardY + cardH - 26);
 
     const buyerName = sale.buyer_name || sale.buyer_email || "cliente";
     const safeName = sanitizeFileName(buyerName);
