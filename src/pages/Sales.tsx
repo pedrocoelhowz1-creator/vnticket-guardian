@@ -256,8 +256,8 @@ const Sales = () => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // Background
-    doc.setFillColor(8, 10, 14);
+    // Background (system dark)
+    doc.setFillColor(8, 12, 20);
     doc.rect(0, 0, pageWidth, pageHeight, "F");
 
     // Header
@@ -275,11 +275,15 @@ const Sales = () => {
     const cardH = 520;
     const cardX = (pageWidth - cardW) / 2;
     const cardY = 90;
-    doc.setFillColor(164, 18, 32); // deep red
+    doc.setFillColor(15, 23, 42); // slate dark
     doc.roundedRect(cardX, cardY, cardW, cardH, 18, 18, "F");
+    // Card border accent
+    doc.setDrawColor(59, 130, 246); // blue accent
+    doc.setLineWidth(1.2);
+    doc.roundedRect(cardX, cardY, cardW, cardH, 18, 18, "S");
 
     // Small cuts (ticket feel)
-    doc.setFillColor(8, 10, 14);
+    doc.setFillColor(8, 12, 20);
     doc.circle(cardX, cardY + 90, 8, "F");
     doc.circle(cardX + cardW, cardY + 90, 8, "F");
 
@@ -291,7 +295,7 @@ const Sales = () => {
     doc.text(title, cardX + 18, cardY + 40, { maxWidth: cardW - 36 });
 
     // Divider
-    doc.setDrawColor(255, 255, 255);
+    doc.setDrawColor(59, 130, 246);
     doc.setLineWidth(0.8);
     doc.line(cardX + 16, cardY + 70, cardX + cardW - 16, cardY + 70);
 
@@ -300,13 +304,17 @@ const Sales = () => {
     const ticketIndex = payload.ticket_index || index + 1;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
+    doc.setTextColor(147, 197, 253);
     doc.text("INGRESSO", cardX + 18, cardY + 98);
+    doc.setTextColor(226, 232, 240);
     doc.text(`Tipo: ${ticketType}`, cardX + 18, cardY + 116);
     doc.text(`Ingresso: ${ticketIndex} de ${total}`, cardX + 18, cardY + 134);
 
     // Buyer
+    doc.setTextColor(147, 197, 253);
     doc.text("COMPRADOR", cardX + 18, cardY + 160);
     doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
     doc.text(sale.buyer_name || sale.buyer_email || "N/A", cardX + 18, cardY + 178, {
       maxWidth: cardW - 36
     });
@@ -327,7 +335,7 @@ const Sales = () => {
     // Footer
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(148, 163, 184);
     doc.text("APRESENTE ESTE QR NA ENTRADA", cardX + 18, cardY + cardH - 26);
 
     const buyerName = sale.buyer_name || sale.buyer_email || "cliente";
