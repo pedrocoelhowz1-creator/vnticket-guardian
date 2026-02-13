@@ -223,6 +223,33 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Insert into purchases table (paid) to keep sales history consistent
+    const purchaseData = {
+      id: ticketId,
+      event_id: event_uuid,
+      quantity: 1,
+      total_amount: basePrice + feeValue,
+      status: 'paid',
+      user_id: user.id,
+      stripe_session_id: null,
+      stripe_payment_intent: null,
+      buyer_name: buyer_name,
+      buyer_email: buyerEmail,
+      buyer_cpf: buyer_cpf,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      seats: null
+    };
+
+    const { error: purchaseError } = await supabase
+      .from('purchases')
+      .insert([purchaseData]);
+
+    if (purchaseError) {
+      console.error('Error inserting purchase:', purchaseError);
+      // Do not fail manual ticket creation if purchases insert fails
+    }
+
     console.log('✅ Manual ticket created successfully:', venda.id);
 
     return new Response(JSON.stringify({
