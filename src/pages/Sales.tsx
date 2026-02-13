@@ -123,48 +123,13 @@ const Sales = () => {
         source: "purchases" as const
       }));
 
-      const { data: vendas, error: vendasError } = await supabase
-        .from("vendas")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500);
-
-      if (vendasError) throw vendasError;
-
-      const normalizeStatus = (v: any) => {
-        const status = (v.status || "").toString().toLowerCase();
-        const paymentStatus = (v.payment_status || "").toString().toLowerCase();
-        if (status === "confirmado" || paymentStatus.startsWith("pago")) return "paid";
-        if (status === "pendente" || paymentStatus === "pending") return "pending";
-        if (status === "cancelado" || status === "canceled") return "canceled";
-        return status || "paid";
-      };
-
-      const salesFromVendas = (vendas || []).map((v: any) => {
-        const eventId = v.event_id || v.id_evento;
-        return {
-          id: v.id || v.id_compra,
-          event_id: eventId,
-          quantity: v.quantity || 1,
-          total_amount: v.total_amount || v.price || 0,
-          status: normalizeStatus(v),
-          buyer_name: v.buyer_name || v.nome_comprador || null,
-          buyer_email: v.buyer_email || v.email || v.email_comprador || null,
-          created_at: v.created_at || new Date().toISOString(),
-          events: eventMap.get(eventId),
-          qr_code: v.qr_code || null,
-          qr_payload: v.qr_payload || null,
-          source: "vendas" as const
-        } as Sale;
-      });
-
-      let salesData = [...salesFromPurchases, ...salesFromVendas];
+      let salesData = [...salesFromPurchases];
 
       if (!admin) {
         salesData = salesData.filter((p: any) => p.events?.producer_id === userId);
       }
 
-      setSales(salesData);
+      setSales(salesData.filter((s) => s.status === "paid"));
     } catch (error) {
       console.error("Erro ao carregar vendas:", error);
     } finally {
