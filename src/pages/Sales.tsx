@@ -95,6 +95,7 @@ const Sales = () => {
       const { data: purchases, error: purchasesError } = await supabase
         .from("purchases")
         .select("*")
+        .eq("status", "paid")
         .order("created_at", { ascending: false })
         .limit(500);
 
