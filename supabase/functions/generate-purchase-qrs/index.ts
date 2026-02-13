@@ -97,17 +97,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (Array.isArray(purchase.qr_codes) && purchase.qr_codes.length > 0) {
-      return new Response(JSON.stringify({ qr_codes: purchase.qr_codes }), {
+    const quantity = Math.max(1, Number(purchase.quantity || 1));
+    const existing = Array.isArray(purchase.qr_codes) ? purchase.qr_codes.filter((v: any) => typeof v === 'string') : [];
+
+    if (existing.length >= quantity) {
+      return new Response(JSON.stringify({ qr_codes: existing }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const quantity = Math.max(1, Number(purchase.quantity || 1));
-    const qrCodes: string[] = [];
+    const qrCodes: string[] = [...existing];
+    const startIndex = existing.length;
 
-    for (let i = 0; i < quantity; i += 1) {
+    for (let i = startIndex; i < quantity; i += 1) {
       const id = crypto.randomUUID();
       const payload = {
         purchase_id: purchase.id,
