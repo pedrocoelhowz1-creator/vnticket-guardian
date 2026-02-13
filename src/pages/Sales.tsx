@@ -142,7 +142,7 @@ const Sales = () => {
       // Enrich paid purchases with qr_code from vendas (if any)
       const { data: vendas, error: vendasError } = await supabase
         .from("vendas")
-        .select("id_compra,id_ingresso,qr_code,qr_payload,buyer_email,email,email_comprador,buyer_name,nome_comprador,created_at")
+        .select("id_compra,id_ingresso,qr_code,buyer_email,email,email_comprador,buyer_name,nome_comprador,created_at")
         .order("created_at", { ascending: false })
         .limit(1000);
 
@@ -160,7 +160,7 @@ const Sales = () => {
         return {
           ...p,
           qr_code: p.qr_code || venda?.qr_code || null,
-          qr_payload: p.qr_payload || venda?.qr_payload || null
+          qr_payload: p.qr_payload || null
         } as Sale;
       });
 
