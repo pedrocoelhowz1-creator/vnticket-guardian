@@ -157,10 +157,12 @@ const Sales = () => {
       let salesData = salesFromPurchases.map((p: any) => {
         const key = p.id_compra || p.id;
         const venda = key ? vendasIndex.get(key) : null;
+        const qrFromVendas = venda?.qr_code || null;
         return {
           ...p,
-          qr_code: p.qr_code || venda?.qr_code || null,
-          qr_payload: p.qr_payload || null
+          qr_code: p.qr_code || qrFromVendas || null,
+          // Avoid showing two QRs when a proper qr_code exists
+          qr_payload: qrFromVendas ? null : p.qr_payload || null
         } as Sale;
       });
 
