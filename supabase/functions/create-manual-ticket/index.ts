@@ -178,6 +178,8 @@ Deno.serve(async (req) => {
     const idIngresso = ticketId;
 
     // Insert into vendas table
+    const buyerEmail = `${buyer_name.replace(/\s+/g, '').toLowerCase()}@manual.com`;
+
     const vendaData = {
       id_compra: idCompra,
       id_evento: event_uuid,
@@ -185,7 +187,12 @@ Deno.serve(async (req) => {
       buyer_name: buyer_name,
       buyer_phone: buyer_phone,
       buyer_cpf: buyer_cpf,
-      buyer_email: `${buyer_name.replace(/\s+/g, '').toLowerCase()}@manual.com`,
+      buyer_email: buyerEmail,
+      // Campos legados/português (alguns bancos usam estes nomes)
+      nome_comprador: buyer_name,
+      telefone_comprador: buyer_phone,
+      cpf_comprador: buyer_cpf,
+      email_comprador: buyerEmail,
       status: 'confirmado',
       payment_status: paymentStatus,
       fee_value: feeValue,

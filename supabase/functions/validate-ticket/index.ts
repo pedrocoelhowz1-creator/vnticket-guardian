@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
           id_compra: foundRecord.id_compra || qrPayload,
           id_evento: foundRecord.id_evento || eventId,
           id_ingresso: foundRecord.id_ingresso || foundRecord.id || qrPayload,
-          email: foundRecord.buyer_email || foundRecord.email || ''
+          email: foundRecord.buyer_email || foundRecord.email_comprador || foundRecord.email || ''
         };
         console.log('Decoded payload (formato antigo, encontrado em vendas):', decodedPayload);
       } else {
@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
           id_compra: foundRecord.id_compra || foundRecord.id || qrPayload,
           id_evento: foundRecord.id_evento || foundRecord.event_id || eventId,
           id_ingresso: foundRecord.id || qrPayload,
-          email: foundRecord.email || foundRecord.buyer_email || ''
+          email: foundRecord.email || foundRecord.email_comprador || foundRecord.buyer_email || ''
         };
         console.log('Decoded payload (formato antigo, encontrado em purchases):', decodedPayload);
       }
@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
           venda = vendaByIngresso;
           decodedPayload.id_compra = venda.id_compra || decodedPayload.id_compra;
           decodedPayload.id_evento = venda.id_evento || decodedPayload.id_evento;
-          decodedPayload.email = venda.buyer_email || venda.email || decodedPayload.email;
+          decodedPayload.email = venda.buyer_email || venda.email_comprador || venda.email || decodedPayload.email;
           console.log('Venda encontrada por id_ingresso:', venda);
         } else {
           // Se ainda não encontrou, tenta buscar pelo ID original (qrPayload)
@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
             decodedPayload.id_compra = venda.id_compra || decodedPayload.id_compra;
             decodedPayload.id_evento = venda.id_evento || decodedPayload.id_evento;
             decodedPayload.id_ingresso = venda.id_ingresso || venda.id || decodedPayload.id_ingresso;
-            decodedPayload.email = venda.buyer_email || venda.email || decodedPayload.email;
+            decodedPayload.email = venda.buyer_email || venda.email_comprador || venda.email || decodedPayload.email;
             console.log('Venda encontrada por busca alternativa:', venda);
           }
         }
@@ -593,8 +593,8 @@ Deno.serve(async (req) => {
       reason: 'Ingresso válido',
       data: {
         ...decodedPayload,
-        buyer_name: venda.buyer_name || venda.name || purchase?.buyer_name || purchase?.name,
-        buyer_email: decodedPayload.email || venda.buyer_email || venda.email
+        buyer_name: venda.buyer_name || venda.nome_comprador || venda.name || purchase?.buyer_name || purchase?.name,
+        buyer_email: decodedPayload.email || venda.buyer_email || venda.email_comprador || venda.email
       }
     }), {
       status: 200,
