@@ -611,6 +611,11 @@ const Sales = () => {
                                     setQrQuantity(qty);
                                     setQrModalSale(sale);
                                     setQrModalOpen(true);
+                                    setSales((prev) =>
+                                      prev.map((s) =>
+                                        s.id === sale.id ? { ...s, qr_codes: data.qr_codes } : s
+                                      )
+                                    );
                                   }
                                 } finally {
                                   setQrLoading(false);
@@ -648,38 +653,43 @@ const Sales = () => {
                   <p className="text-xs text-gray-400">{qrModalTitle}</p>
                 </div>
                 <div className="flex gap-2">
-                  {qrModalSale && qrList.length < qrQuantity && (
-                    <Button
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          setQrLoading(true);
-                          const { data: sessionData } = await supabase.auth.getSession();
-                          const accessToken = sessionData.session?.access_token;
-                          const response = await fetch(
-                            `${import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co'}/functions/v1/generate-purchase-qrs`,
-                            {
-                              method: "POST",
-                              headers: {
-                                "Content-Type": "application/json",
-                                Authorization: `Bearer ${accessToken}`,
-                              },
-                              body: JSON.stringify({ purchase_id: qrModalSale.id }),
-                            }
-                          );
-                          const data = await response.json();
-                          if (data?.qr_codes?.length) {
-                            setQrList(data.qr_codes);
-                          }
-                        } finally {
-                          setQrLoading(false);
-                        }
-                      }}
-                      disabled={qrLoading}
-                    >
-                      Completar QRs
-                    </Button>
-                  )}
+                          {qrModalSale && qrList.length < qrQuantity && (
+                            <Button
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  setQrLoading(true);
+                                  const { data: sessionData } = await supabase.auth.getSession();
+                                  const accessToken = sessionData.session?.access_token;
+                                  const response = await fetch(
+                                    `${import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co'}/functions/v1/generate-purchase-qrs`,
+                                    {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${accessToken}`,
+                                      },
+                                      body: JSON.stringify({ purchase_id: qrModalSale.id }),
+                                    }
+                                  );
+                                  const data = await response.json();
+                                  if (data?.qr_codes?.length) {
+                                    setQrList(data.qr_codes);
+                                    setSales((prev) =>
+                                      prev.map((s) =>
+                                        s.id === qrModalSale.id ? { ...s, qr_codes: data.qr_codes } : s
+                                      )
+                                    );
+                                  }
+                                } finally {
+                                  setQrLoading(false);
+                                }
+                              }}
+                              disabled={qrLoading}
+                            >
+                              Completar QRs
+                            </Button>
+                          )}
                   <Button variant="outline" onClick={() => setQrModalOpen(false)}>Fechar</Button>
                 </div>
               </div>
