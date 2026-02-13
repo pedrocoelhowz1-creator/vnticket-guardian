@@ -297,7 +297,7 @@ const ManualTicket = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {events.length === 0 && (
-                        <SelectItem value="" disabled>Nenhum evento disponível</SelectItem>
+                        <SelectItem value="__none__" disabled>Nenhum evento disponível</SelectItem>
                       )}
                       {events.map(event => (
                         <SelectItem key={event.id} value={event.id}>
@@ -386,7 +386,7 @@ const ManualTicket = () => {
                         const selectedEvent = events.find((e) => e.id === formData.event_uuid);
                         const ticketTypes = Array.isArray(selectedEvent?.ticket_types) ? selectedEvent?.ticket_types : [];
                         if (ticketTypes.length === 0) {
-                          return <SelectItem value="" disabled>Nenhum tipo cadastrado</SelectItem>;
+                          return <SelectItem value="__none__" disabled>Nenhum tipo cadastrado</SelectItem>;
                         }
                         return ticketTypes.map((type) => (
                           <SelectItem key={type.name} value={type.name}>
