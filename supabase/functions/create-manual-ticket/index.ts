@@ -142,20 +142,10 @@ Deno.serve(async (req) => {
       feeValue = event.has_fee ? event.fee_amount : 0;
       saleTypeDb = 'manual_online';
 
-      // Generate QR Code
-      const qrPayload = {
-        id_compra: ticketId,
-        id_evento: event_uuid,
-        id_ingresso: ticketId,
-        email: `${buyer_name.replace(/\s+/g, '').toLowerCase()}@manual.com`,
-        buyer_name: buyer_name,
-        ticket_type: ticket_type_name || null,
-        ticket_price: basePrice
-      };
-      qrCode = btoa(JSON.stringify(qrPayload));
-
-      paymentStatus = 'pago';
-      console.log('Online/WhatsApp sale - QR generated, fee applied:', feeValue);
+      // Online/WhatsApp uses checkout link (payment pending)
+      qrCode = null;
+      paymentStatus = 'pending';
+      console.log('Online/WhatsApp sale - payment pending, fee applied:', feeValue);
     } else if (sale_type === 'presencial') {
       // Apply reduced fee (half of standard fee)
       feeValue = event.has_fee ? event.fee_amount * 0.5 : 0;
@@ -195,7 +185,7 @@ Deno.serve(async (req) => {
       email_comprador: buyerEmail,
       // Campos legados em inglês simples (alguns bancos usam "email")
       email: buyerEmail,
-      status: 'confirmado',
+      status: sale_type === 'online_whatsapp' ? 'pendente' : 'confirmado',
       payment_status: paymentStatus,
       fee_value: feeValue,
       qr_code: qrCode,
@@ -223,13 +213,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Insert into purchases table (paid) to keep sales history consistent
+    // Insert into purchases table (pending for whatsapp, paid for presencial)
     const purchaseData = {
       id: ticketId,
       event_id: event_uuid,
       quantity: 1,
       total_amount: basePrice + feeValue,
-      status: 'paid',
+      status: sale_type === 'online_whatsapp' ? 'pending' : 'paid',
       user_id: user.id,
       stripe_session_id: null,
       stripe_payment_intent: null,
@@ -239,7 +229,8 @@ Deno.serve(async (req) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       seats: null,
-      qr_codes: qrCode ? [qrCode] : []
+      qr_codes: qrCode ? [qrCode] : [],
+      ticket_type: ticket_type_name || null
     };
 
     const { error: purchaseError } = await supabase
@@ -251,11 +242,77 @@ Deno.serve(async (req) => {
       // Do not fail manual ticket creation if purchases insert fails
     }
 
+    let checkoutUrl: string | null = null;
+    let mpPreferenceId: string | null = null;
+
+    if (sale_type === 'online_whatsapp') {
+      const mpAccessToken =
+        Deno.env.get('MERCADOPAGO_ACCESS_TOKEN') ||
+        Deno.env.get('MP_ACCESS_TOKEN') ||
+        Deno.env.get('MP_TOKEN') ||
+        '';
+
+      if (!mpAccessToken) {
+        console.error('Missing Mercado Pago access token');
+      } else {
+        const preferencePayload = {
+          items: [
+            {
+              title: event.title,
+              quantity: 1,
+              currency_id: 'BRL',
+              unit_price: Number(basePrice + feeValue)
+            }
+          ],
+          metadata: {
+            purchase_id: ticketId,
+            event_id: event_uuid,
+            buyer_email: buyerEmail,
+            buyer_name: buyer_name,
+            ticket_type: ticket_type_name || null
+          },
+          external_reference: ticketId,
+          back_urls: {
+            success: Deno.env.get('MP_SUCCESS_URL') || '',
+            failure: Deno.env.get('MP_FAILURE_URL') || '',
+            pending: Deno.env.get('MP_PENDING_URL') || ''
+          },
+          notification_url: Deno.env.get('MP_NOTIFICATION_URL') || ''
+        };
+
+        const prefRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${mpAccessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(preferencePayload)
+        });
+
+        const prefData = await prefRes.json();
+        if (prefRes.ok) {
+          checkoutUrl = prefData.init_point || prefData.sandbox_init_point || null;
+          mpPreferenceId = prefData.id || null;
+
+          if (checkoutUrl) {
+            await supabase.from('purchases').update({
+              mp_preference_id: mpPreferenceId,
+              mp_checkout_url: checkoutUrl
+            }).eq('id', ticketId);
+          }
+        } else {
+          console.error('Mercado Pago preference error:', prefData);
+        }
+      }
+    }
+
     console.log('✅ Manual ticket created successfully:', venda.id);
 
     return new Response(JSON.stringify({
       success: true,
       ticket: venda,
+      checkout_url: checkoutUrl,
+      mp_preference_id: mpPreferenceId,
       message: 'Ingresso manual criado com sucesso'
     }), {
       status: 201,

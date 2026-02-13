@@ -70,6 +70,7 @@ const ManualTicket = () => {
     ticketType?: string;
     saleType: string;
   } | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -230,6 +231,7 @@ const ManualTicket = () => {
         ticketType: formData.ticket_type_name || undefined,
         saleType: formData.sale_type
       });
+      setCheckoutUrl(data?.checkout_url || null);
 
       // Reset form
       setFormData(initialFormData);
@@ -458,14 +460,39 @@ const ManualTicket = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Ticket className="h-5 w-5 text-primary" />
-                  QR Code do Ingresso
+                  QR Code / Checkout
                 </CardTitle>
                 <CardDescription className="text-xs">
                   {createdTicketInfo.eventTitle} - {createdTicketInfo.ticketType || "Ingresso"} - {createdTicketInfo.buyerName}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {createdQrCode ? (
+                {checkoutUrl && createdTicketInfo.saleType === "online_whatsapp" ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Link de pagamento (WhatsApp):
+                    </p>
+                    <Input
+                      readOnly
+                      value={checkoutUrl}
+                      className="bg-secondary/50 border-border/50 font-mono text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-border/50 hover:bg-secondary/50"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(checkoutUrl);
+                        toast({
+                          title: "Copiado",
+                          description: "Link do checkout copiado para a área de transferência"
+                        });
+                      }}
+                    >
+                      Copiar Link
+                    </Button>
+                  </div>
+                ) : createdQrCode ? (
                   <div className="flex flex-col items-center gap-3">
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(createdQrCode)}`}
