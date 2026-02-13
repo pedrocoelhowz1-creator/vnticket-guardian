@@ -324,36 +324,70 @@ Deno.serve(async (req) => {
     }
 
     if (!venda) {
-      console.error('Venda não encontrada após todas as tentativas');
-      console.error('Dados procurados:', {
-        id_compra: decodedPayload.id_compra,
-        id_ingresso: decodedPayload.id_ingresso,
-        qrPayload: qrPayload,
-        eventId: eventId,
-        decodedPayload: decodedPayload,
-        isLegacyFormat: isLegacyFormat,
-        foundInTable: isLegacyFormat ? foundInTable : 'n/a'
-      });
+      // Try to validate against purchases directly (paid purchases without vendas)
+      const { data: purchaseDirect, error: purchaseDirectError } = await supabase
+        .from('purchases')
+        .select('*')
+        .or(`id.eq.${decodedPayload.id_ingresso},id_compra.eq.${decodedPayload.id_compra}`)
+        .maybeSingle();
 
-      await supabase.from('checkins').insert({
-        id_compra: decodedPayload.id_compra || qrPayload,
-        id_evento: eventId,
-        id_ingresso: decodedPayload.id_ingresso || qrPayload,
-        buyer_email: decodedPayload.email,
-        validated_by: user.id,
-        status: 'invalid',
-        reason: 'Ingresso não encontrado na tabela vendas',
-        qr_payload: qrPayload
-      });
+      if (!purchaseDirectError && purchaseDirect) {
+        purchase = purchaseDirect;
+        if (purchase.status === 'paid') {
+          console.log('✅ Purchase found and paid (no venda). Allowing validation.');
+        } else {
+          await supabase.from('checkins').insert({
+            id_compra: decodedPayload.id_compra || qrPayload,
+            id_evento: eventId,
+            id_ingresso: decodedPayload.id_ingresso || qrPayload,
+            buyer_email: decodedPayload.email || purchase.email || purchase.buyer_email || '',
+            validated_by: user.id,
+            status: 'invalid',
+            reason: 'Pagamento não confirmado',
+            qr_payload: qrPayload
+          });
 
-      return new Response(JSON.stringify({
-        status: 'invalid',
-        reason: 'Ingresso não encontrado na tabela vendas. Verifique se o ID existe e se o evento está correto.',
-        data: decodedPayload
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+          return new Response(JSON.stringify({
+            status: 'invalid',
+            reason: 'Pagamento não confirmado',
+            data: decodedPayload
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+      } else {
+        console.error('Venda não encontrada após todas as tentativas');
+        console.error('Dados procurados:', {
+          id_compra: decodedPayload.id_compra,
+          id_ingresso: decodedPayload.id_ingresso,
+          qrPayload: qrPayload,
+          eventId: eventId,
+          decodedPayload: decodedPayload,
+          isLegacyFormat: isLegacyFormat,
+          foundInTable: isLegacyFormat ? foundInTable : 'n/a'
+        });
+
+        await supabase.from('checkins').insert({
+          id_compra: decodedPayload.id_compra || qrPayload,
+          id_evento: eventId,
+          id_ingresso: decodedPayload.id_ingresso || qrPayload,
+          buyer_email: decodedPayload.email,
+          validated_by: user.id,
+          status: 'invalid',
+          reason: 'Ingresso não encontrado na tabela vendas',
+          qr_payload: qrPayload
+        });
+
+        return new Response(JSON.stringify({
+          status: 'invalid',
+          reason: 'Ingresso não encontrado na tabela vendas. Verifique se o ID existe e se o evento está correto.',
+          data: decodedPayload
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     // VERIFICAR SE O INGRESSO JÁ FOI ESCANEADO (CHECK-IN JÁ REALIZADO)
@@ -522,19 +556,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update venda status to 'utilizado'
-    const updateResult = await supabase
-      .from('vendas')
-      .update({
-        status: 'utilizado',
-        used_at: new Date().toISOString()
-      })
-      .eq('id_compra', decodedPayload.id_compra);
+    // Update venda status to 'utilizado' if venda exists
+    if (venda) {
+      const updateResult = await supabase
+        .from('vendas')
+        .update({
+          status: 'utilizado',
+          used_at: new Date().toISOString()
+        })
+        .eq('id_compra', decodedPayload.id_compra);
 
-    if (updateResult.error) {
-      console.error('Error updating venda status:', updateResult.error);
-    } else {
-      console.log('✅ Status da venda atualizado para "utilizado"');
+      if (updateResult.error) {
+        console.error('Error updating venda status:', updateResult.error);
+      } else {
+        console.log('✅ Status da venda atualizado para "utilizado"');
+      }
     }
 
     // Log successful check-in
@@ -593,8 +629,8 @@ Deno.serve(async (req) => {
       reason: 'Ingresso válido',
       data: {
         ...decodedPayload,
-        buyer_name: venda.buyer_name || venda.nome_comprador || venda.name || purchase?.buyer_name || purchase?.name,
-        buyer_email: decodedPayload.email || venda.buyer_email || venda.email_comprador || venda.email
+        buyer_name: venda?.buyer_name || venda?.nome_comprador || venda?.name || purchase?.buyer_name || purchase?.name,
+        buyer_email: decodedPayload.email || venda?.buyer_email || venda?.email_comprador || venda?.email || purchase?.buyer_email || purchase?.email
       }
     }), {
       status: 200,

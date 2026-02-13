@@ -116,14 +116,54 @@ const Sales = () => {
         return s || "pending";
       };
 
+      const toQrPayload = (p: any) => {
+        const payload = {
+          id_compra: p.id_compra || p.id,
+          id_evento: p.event_id,
+          id_ingresso: p.id,
+          email: p.buyer_email,
+          buyer_name: p.buyer_name
+        };
+        try {
+          return btoa(JSON.stringify(payload));
+        } catch {
+          return null;
+        }
+      };
+
       const salesFromPurchases = (purchases || []).map((p: any) => ({
         ...p,
         status: normalizePurchaseStatus(p),
         events: eventMap.get(p.event_id),
-        source: "purchases" as const
+        source: "purchases" as const,
+        qr_payload: p.qr_payload || toQrPayload(p)
       }));
 
-      let salesData = [...salesFromPurchases];
+      // Enrich paid purchases with qr_code from vendas (if any)
+      const { data: vendas, error: vendasError } = await supabase
+        .from("vendas")
+        .select("id,id_compra,id_ingresso,qr_code,qr_payload,buyer_email,email,email_comprador,buyer_name,nome_comprador,created_at")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (vendasError) throw vendasError;
+
+      const vendasIndex = new Map<string, any>();
+      (vendas || []).forEach((v: any) => {
+        if (v.id_compra) vendasIndex.set(v.id_compra, v);
+        if (v.id_ingresso) vendasIndex.set(v.id_ingresso, v);
+        if (v.id) vendasIndex.set(v.id, v);
+      });
+
+      let salesData = salesFromPurchases.map((p: any) => {
+        const key = p.id_compra || p.id;
+        const venda = key ? vendasIndex.get(key) : null;
+        return {
+          ...p,
+          qr_code: p.qr_code || venda?.qr_code || null,
+          qr_payload: p.qr_payload || venda?.qr_payload || null
+        } as Sale;
+      });
 
       if (!admin) {
         salesData = salesData.filter((p: any) => p.events?.producer_id === userId);
