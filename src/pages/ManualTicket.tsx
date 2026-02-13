@@ -82,8 +82,8 @@ const ManualTicket = () => {
         return;
       }
 
-      const { checkIsAdmin } = await import('@/lib/adminCheck');
-      const hasAccess = await checkIsAdmin(currentSession.user.id, currentSession.user.email || '');
+      const { checkIsAdminOrProducer } = await import('@/lib/adminCheck');
+      const hasAccess = await checkIsAdminOrProducer(currentSession.user.id);
 
       if (!hasAccess) {
         toast({

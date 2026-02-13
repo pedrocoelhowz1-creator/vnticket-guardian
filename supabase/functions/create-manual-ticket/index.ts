@@ -61,18 +61,18 @@ Deno.serve(async (req) => {
 
     console.log('User authenticated:', user.id);
 
-    // Verificar se o usuário tem role de admin
+    // Verificar se o usuário tem role de admin ou producer
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .eq('role', 'admin')
+      .in('role', ['admin', 'producer'])
       .maybeSingle();
 
     if (roleError || !roleData) {
-      console.error('User is not admin:', user.id);
+      console.error('User is not admin/producer:', user.id);
       return new Response(JSON.stringify({
-        error: 'Acesso negado. Apenas administradores podem criar ingressos manuais.'
+        error: 'Acesso negado. Apenas administradores ou produtores podem criar ingressos manuais.'
       }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
