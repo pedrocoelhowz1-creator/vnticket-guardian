@@ -194,6 +194,14 @@ const Sales = () => {
         v.forEach((item) => pushIfString(item));
       }
     };
+    const pushJsonIfArray = (v: any) => {
+      if (typeof v === "string" && v.trim().startsWith("[")) {
+        try {
+          const parsed = JSON.parse(v);
+          pushArray(parsed);
+        } catch {}
+      }
+    };
 
     pushIfString(sale.qr_code);
     pushIfString(sale.qr_payload);
@@ -209,12 +217,28 @@ const Sales = () => {
     }
 
     // Try to parse JSON arrays if the payload is JSON
-    try {
-      if (sale.qr_payload && sale.qr_payload.trim().startsWith("[")) {
-        const parsed = JSON.parse(sale.qr_payload);
-        pushArray(parsed);
-      }
-    } catch {}
+    pushJsonIfArray(sale.qr_payload);
+
+    // Heuristic: scan all fields for likely QR/code arrays or strings
+    Object.entries(sale).forEach(([key, value]) => {
+      const k = key.toLowerCase();
+      const isLikelyCodeField =
+        k.includes("qr") ||
+        k.includes("qrcode") ||
+        k.includes("qr_code") ||
+        k.includes("qrpayload") ||
+        k.includes("ticket_code") ||
+        k.includes("ticket_codes") ||
+        k.includes("barcode") ||
+        (k.includes("ticket") && k.includes("code")) ||
+        k.endsWith("_code");
+
+      if (!isLikelyCodeField) return;
+
+      pushIfString(value);
+      pushArray(value);
+      pushJsonIfArray(value);
+    });
 
     return Array.from(new Set(list));
   };
