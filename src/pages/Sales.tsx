@@ -234,69 +234,99 @@ const Sales = () => {
     });
   };
 
+  const sanitizeFileName = (name: string) =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-");
+
   const downloadTicketPdf = async (sale: Sale, payloadBase64: string, index: number, total: number) => {
     const payload = decodeQrPayload(payloadBase64) || {};
     const doc = new jsPDF({ unit: "pt", format: "a4" });
 
-    const margin = 40;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 36;
+
+    // Dark background
+    doc.setFillColor(10, 16, 26);
+    doc.rect(0, 0, pageWidth, pageHeight, "F");
+
+    // Accent bar
+    doc.setFillColor(34, 197, 94);
+    doc.rect(0, 0, pageWidth, 6, "F");
 
     // Header
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
     doc.text("VN TICKET", margin, 40);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.text("Ingresso Digital", margin, 60);
+    doc.setFontSize(11);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Ingresso Digital", margin, 58);
 
-    // Logo
+    // Logo (top-right)
     try {
       const logoData = await fetchAsDataUrl(logo);
-      doc.addImage(logoData, "PNG", pageWidth - 120, 20, 80, 40);
+      doc.addImage(logoData, "PNG", pageWidth - 120, 18, 80, 40);
     } catch {}
 
-    // Event image
+    // Card container
+    const cardX = margin;
+    const cardY = 80;
+    const cardW = pageWidth - margin * 2;
+    const cardH = 420;
+    doc.setFillColor(17, 24, 39);
+    doc.roundedRect(cardX, cardY, cardW, cardH, 12, 12, "F");
+
+    // Event image inside card
     const eventImage = sale.events?.image_url;
     if (eventImage) {
       try {
         const imgData = await fetchAsDataUrl(eventImage);
-        doc.addImage(imgData, "JPEG", margin, 80, pageWidth - margin * 2, 180);
+        doc.addImage(imgData, "JPEG", cardX + 16, cardY + 16, cardW - 32, 160);
       } catch {}
     }
 
-    const startY = eventImage ? 280 : 90;
-
+    const contentY = eventImage ? cardY + 190 : cardY + 20;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(sale.events?.title || "Evento", margin, startY);
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text(sale.events?.title || "Evento", cardX + 20, contentY);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    doc.text(`Comprador: ${sale.buyer_name || sale.buyer_email || "N/A"}`, margin, startY + 22);
+    doc.setTextColor(203, 213, 225);
+    doc.text(`Comprador: ${sale.buyer_name || sale.buyer_email || "N/A"}`, cardX + 20, contentY + 22);
 
     const ticketType = payload.ticket_type || sale.ticket_type || "N/A";
-    doc.text(`Tipo de ingresso: ${ticketType}`, margin, startY + 40);
+    doc.text(`Tipo de ingresso: ${ticketType}`, cardX + 20, contentY + 40);
 
     const ticketIndex = payload.ticket_index || index + 1;
-    doc.text(`Ingresso: ${ticketIndex} de ${total}`, margin, startY + 58);
+    doc.text(`Ingresso: ${ticketIndex} de ${total}`, cardX + 20, contentY + 58);
 
-    // Sponsors
     const sponsors = Array.isArray(sale.events?.sponsors) ? sale.events?.sponsors : [];
     const sponsorsText = sponsors.length ? sponsors.join(", ") : "N/A";
-    doc.text(`Patrocinadores: ${sponsorsText}`, margin, startY + 76);
+    doc.text(`Patrocinadores: ${sponsorsText}`, cardX + 20, contentY + 76);
 
-    // QR image
+    // QR block
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payloadBase64)}`;
     try {
       const qrData = await fetchAsDataUrl(qrUrl);
-      doc.addImage(qrData, "PNG", margin, startY + 100, 180, 180);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(cardX + 20, contentY + 100, 160, 160, 10, 10, "F");
+      doc.addImage(qrData, "PNG", cardX + 30, contentY + 110, 140, 140);
     } catch {}
 
+    // Footer note
     doc.setFontSize(9);
-    doc.text("Apresente este QR na entrada. Uso único.", margin, pageHeight - 40);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Apresente este QR na entrada. Uso único.", margin, pageHeight - 30);
 
-    doc.save(`ingresso-${ticketIndex}.pdf`);
+    const buyerName = sale.buyer_name || sale.buyer_email || "cliente";
+    const safeName = sanitizeFileName(buyerName);
+    doc.save(`ingresso-${safeName}-#${ticketIndex}.pdf`);
   };
 
   const extractQrList = (sale: Sale): string[] => {
