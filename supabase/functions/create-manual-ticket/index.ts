@@ -193,6 +193,8 @@ Deno.serve(async (req) => {
       telefone_comprador: buyer_phone,
       cpf_comprador: buyer_cpf,
       email_comprador: buyerEmail,
+      // Campos legados em inglês simples (alguns bancos usam "email")
+      email: buyerEmail,
       status: 'confirmado',
       payment_status: paymentStatus,
       fee_value: feeValue,
