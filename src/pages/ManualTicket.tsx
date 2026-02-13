@@ -29,6 +29,12 @@ interface Event {
   producer_id: string | null;
   created_at: string | null;
   updated_at: string | null;
+  ticket_types?: PriceOption[];
+}
+
+interface PriceOption {
+  name: string;
+  price: number;
 }
 
 interface ManualTicketFormData {
@@ -37,6 +43,8 @@ interface ManualTicketFormData {
   buyer_phone: string;
   buyer_cpf: string;
   sale_type: string;
+  ticket_type_name: string;
+  ticket_type_price: number | null;
 }
 
 const initialFormData: ManualTicketFormData = {
@@ -44,7 +52,9 @@ const initialFormData: ManualTicketFormData = {
   buyer_name: "",
   buyer_phone: "",
   buyer_cpf: "",
-  sale_type: ""
+  sale_type: "",
+  ticket_type_name: "",
+  ticket_type_price: null
 };
 
 const ManualTicket = () => {
@@ -72,8 +82,8 @@ const ManualTicket = () => {
         return;
       }
 
-      const { checkIsAdminOrProducer } = await import('@/lib/adminCheck');
-      const hasAccess = await checkIsAdminOrProducer(currentSession.user.id);
+      const { checkIsAdmin } = await import('@/lib/adminCheck');
+      const hasAccess = await checkIsAdmin(currentSession.user.id, currentSession.user.email || '');
 
       if (!hasAccess) {
         toast({
@@ -163,6 +173,17 @@ const ManualTicket = () => {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha todos os campos obrigatórios",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const selectedEvent = events.find((e) => e.id === formData.event_uuid);
+    const eventTicketTypes = Array.isArray(selectedEvent?.ticket_types) ? selectedEvent?.ticket_types : [];
+    if (eventTicketTypes.length > 0 && !formData.ticket_type_name) {
+      toast({
+        title: "Tipo de ingresso obrigatório",
+        description: "Selecione o tipo de ingresso (pista, VIP, etc)",
         variant: "destructive"
       });
       return;
@@ -259,7 +280,17 @@ const ManualTicket = () => {
                   <Label htmlFor="event_uuid">Evento *</Label>
                   <Select
                     value={formData.event_uuid}
-                    onValueChange={(value) => setFormData({ ...formData, event_uuid: value })}
+                    onValueChange={(value) => {
+                      const selectedEvent = events.find((e) => e.id === value);
+                      const ticketTypes = Array.isArray(selectedEvent?.ticket_types) ? selectedEvent?.ticket_types : [];
+                      const defaultType = ticketTypes.length > 0 ? ticketTypes[0] : null;
+                      setFormData({
+                        ...formData,
+                        event_uuid: value,
+                        ticket_type_name: defaultType?.name || "",
+                        ticket_type_price: defaultType?.price ?? null
+                      });
+                    }}
                   >
                     <SelectTrigger className="bg-secondary/50 border-border/50 focus:border-primary">
                       <SelectValue placeholder="Selecione um evento" />
@@ -329,6 +360,47 @@ const ManualTicket = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ticket_type">Tipo de Ingresso</Label>
+                  <Select
+                    value={formData.ticket_type_name}
+                    onValueChange={(value) => {
+                      const selectedEvent = events.find((e) => e.id === formData.event_uuid);
+                      const ticketTypes = Array.isArray(selectedEvent?.ticket_types) ? selectedEvent?.ticket_types : [];
+                      const selectedType = ticketTypes.find((t) => t.name === value);
+                      setFormData({
+                        ...formData,
+                        ticket_type_name: value,
+                        ticket_type_price: selectedType?.price ?? null
+                      });
+                    }}
+                    disabled={!formData.event_uuid}
+                  >
+                    <SelectTrigger className="bg-secondary/50 border-border/50 focus:border-primary">
+                      <SelectValue placeholder="Selecione o tipo (pista, VIP...)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const selectedEvent = events.find((e) => e.id === formData.event_uuid);
+                        const ticketTypes = Array.isArray(selectedEvent?.ticket_types) ? selectedEvent?.ticket_types : [];
+                        if (ticketTypes.length === 0) {
+                          return <SelectItem value="" disabled>Nenhum tipo cadastrado</SelectItem>;
+                        }
+                        return ticketTypes.map((type) => (
+                          <SelectItem key={type.name} value={type.name}>
+                            {type.name} - R$ {Number(type.price || 0).toFixed(2)}
+                          </SelectItem>
+                        ));
+                      })()}
+                    </SelectContent>
+                  </Select>
+                  {formData.ticket_type_name && formData.ticket_type_price !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      Preço do tipo selecionado: R$ {Number(formData.ticket_type_price || 0).toFixed(2)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-border/30">

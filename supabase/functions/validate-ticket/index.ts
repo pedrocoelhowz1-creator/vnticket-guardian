@@ -55,19 +55,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verificar se o usuário tem role de admin
+    // Verificar se o usuário tem role de admin ou producer
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .eq('role', 'admin')
+      .in('role', ['admin', 'producer'])
       .maybeSingle();
 
     if (roleError || !roleData) {
-      console.error('User is not admin:', user.id);
+      console.error('User is not admin/producer:', user.id);
       return new Response(JSON.stringify({
         status: 'error',
-        reason: 'Acesso negado. Apenas administradores podem validar ingressos.'
+        reason: 'Acesso negado. Apenas administradores ou produtores podem validar ingressos.'
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -538,7 +538,7 @@ Deno.serve(async (req) => {
     }
 
     // Log successful check-in
-    await supabase.from('checkins').insert({
+    const { error: validCheckinError } = await supabase.from('checkins').insert({
       id_compra: decodedPayload.id_compra,
       id_evento: eventId,
       id_ingresso: decodedPayload.id_ingresso,
@@ -548,6 +548,43 @@ Deno.serve(async (req) => {
       reason: null,
       qr_payload: qrPayload
     });
+
+    if (validCheckinError) {
+      // Unique constraint violation: already used
+      if ((validCheckinError as any).code === '23505') {
+        await supabase.from('checkins').insert({
+          id_compra: decodedPayload.id_compra,
+          id_evento: eventId,
+          id_ingresso: decodedPayload.id_ingresso,
+          buyer_email: decodedPayload.email,
+          validated_by: user.id,
+          status: 'invalid',
+          reason: 'Ingresso já foi bipado anteriormente',
+          qr_payload: qrPayload
+        });
+
+        return new Response(JSON.stringify({
+          status: 'invalid',
+          reason: 'Ingresso já foi bipado',
+          data: {
+            ...decodedPayload,
+            buyer_name: venda.buyer_name || venda.name
+          }
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      console.error('Error inserting valid checkin:', validCheckinError);
+      return new Response(JSON.stringify({
+        status: 'error',
+        reason: 'Erro ao registrar check-in'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     console.log('✅ Check-in realizado com sucesso');
 

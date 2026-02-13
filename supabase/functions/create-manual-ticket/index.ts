@@ -82,7 +82,15 @@ Deno.serve(async (req) => {
     console.log('User is admin, proceeding with manual ticket creation...');
 
     // Parse request body
-    const { event_uuid, buyer_name, buyer_phone, buyer_cpf, sale_type } = await req.json();
+    const {
+      event_uuid,
+      buyer_name,
+      buyer_phone,
+      buyer_cpf,
+      sale_type,
+      ticket_type_name,
+      ticket_type_price
+    } = await req.json();
 
     if (!event_uuid || !buyer_name || !buyer_phone || !buyer_cpf || !sale_type) {
       return new Response(JSON.stringify({
@@ -115,11 +123,19 @@ Deno.serve(async (req) => {
 
     console.log('Event found:', event.title);
 
+    // Base ticket price (by type, if provided)
+    const basePrice = typeof ticket_type_price === 'number' && !isNaN(ticket_type_price)
+      ? ticket_type_price
+      : (event.price || 0);
+
     // Calculate fee based on sale type
     let feeValue = 0;
     let qrCode = null;
     let saleTypeDb = '';
     let paymentStatus = '';
+
+    // Single ticket id used across QR payload and venda ids
+    const ticketId = crypto.randomUUID();
 
     if (sale_type === 'online_whatsapp') {
       // Apply standard fee
@@ -127,13 +143,14 @@ Deno.serve(async (req) => {
       saleTypeDb = 'manual_online';
 
       // Generate QR Code
-      const ticketId = crypto.randomUUID();
       const qrPayload = {
         id_compra: ticketId,
         id_evento: event_uuid,
         id_ingresso: ticketId,
         email: `${buyer_name.replace(/\s+/g, '').toLowerCase()}@manual.com`,
-        buyer_name: buyer_name
+        buyer_name: buyer_name,
+        ticket_type: ticket_type_name || null,
+        ticket_price: basePrice
       };
       qrCode = btoa(JSON.stringify(qrPayload));
 
@@ -156,9 +173,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate unique IDs
-    const idCompra = crypto.randomUUID();
-    const idIngresso = crypto.randomUUID();
+    // Generate unique IDs (use same id to keep QR and venda aligned)
+    const idCompra = ticketId;
+    const idIngresso = ticketId;
 
     // Insert into vendas table
     const vendaData = {
@@ -176,7 +193,7 @@ Deno.serve(async (req) => {
       sale_type: saleTypeDb,
       created_at: new Date().toISOString(),
       quantity: 1,
-      total_amount: event.price + feeValue
+      total_amount: basePrice + feeValue
     };
 
     console.log('Inserting venda:', vendaData);
