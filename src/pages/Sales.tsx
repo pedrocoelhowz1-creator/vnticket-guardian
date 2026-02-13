@@ -34,7 +34,7 @@ const Sales = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string>("all");
   const [selectedProducerId, setSelectedProducerId] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("paid");
+  const [selectedStatus] = useState<string>("paid");
   const [buyerSearch, setBuyerSearch] = useState<string>("");
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrModalTitle, setQrModalTitle] = useState("");
@@ -174,6 +174,7 @@ const Sales = () => {
   );
 
   const filteredSales = sales.filter((sale) => {
+    if (sale.status !== "paid") return false;
     if (selectedStatus !== "all" && sale.status !== selectedStatus) return false;
     if (selectedEventId !== "all" && sale.event_id !== selectedEventId) return false;
     if (selectedProducerId !== "all" && sale.events?.producer_id !== selectedProducerId) return false;
@@ -282,12 +283,9 @@ const Sales = () => {
                   <select
                     className="w-full mt-1 bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-white"
                     value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    disabled
                   >
                     <option value="paid">Pago</option>
-                    <option value="pending">Pendente</option>
-                    <option value="canceled">Cancelado</option>
-                    <option value="all">Todos</option>
                   </select>
                 </div>
                 <div>
