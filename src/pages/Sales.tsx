@@ -135,6 +135,8 @@ const Sales = () => {
           buyer_email: v.buyer_email || v.email || v.email_comprador || null,
           created_at: v.created_at || new Date().toISOString(),
           events: eventMap.get(eventId),
+          qr_code: v.qr_code || null,
+          qr_payload: v.qr_payload || null,
           source: "vendas" as const
         } as Sale;
       });
