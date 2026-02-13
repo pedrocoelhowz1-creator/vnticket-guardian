@@ -19,6 +19,11 @@ interface Sale {
   created_at: string;
   events?: any;
   source?: "purchases" | "vendas";
+  qr_code?: string | null;
+  qr_payload?: string | null;
+  qr_codes?: string[] | null;
+  ticket_codes?: string[] | null;
+  tickets?: any;
 }
 
 const Sales = () => {
@@ -31,6 +36,10 @@ const Sales = () => {
   const [selectedProducerId, setSelectedProducerId] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("paid");
   const [buyerSearch, setBuyerSearch] = useState<string>("");
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrModalTitle, setQrModalTitle] = useState("");
+  const [qrList, setQrList] = useState<string[]>([]);
+  const [qrQuantity, setQrQuantity] = useState<number>(1);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -175,6 +184,41 @@ const Sales = () => {
     return true;
   });
 
+  const extractQrList = (sale: Sale): string[] => {
+    const list: string[] = [];
+    const pushIfString = (v: any) => {
+      if (typeof v === "string" && v.trim()) list.push(v.trim());
+    };
+    const pushArray = (v: any) => {
+      if (Array.isArray(v)) {
+        v.forEach((item) => pushIfString(item));
+      }
+    };
+
+    pushIfString(sale.qr_code);
+    pushIfString(sale.qr_payload);
+    pushArray(sale.qr_codes);
+    pushArray(sale.ticket_codes);
+
+    if (sale.tickets && Array.isArray(sale.tickets)) {
+      sale.tickets.forEach((t: any) => {
+        pushIfString(t.qr_code);
+        pushIfString(t.qr_payload);
+        pushIfString(t.code);
+      });
+    }
+
+    // Try to parse JSON arrays if the payload is JSON
+    try {
+      if (sale.qr_payload && sale.qr_payload.trim().startsWith("[")) {
+        const parsed = JSON.parse(sale.qr_payload);
+        pushArray(parsed);
+      }
+    } catch {}
+
+    return Array.from(new Set(list));
+  };
+
   return (
     <div className="min-h-screen bg-background circuit-bg pb-20">
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
@@ -272,11 +316,16 @@ const Sales = () => {
                     <th className="text-left py-3 px-4 text-gray-400 font-semibold">Comprador</th>
                     <th className="text-left py-3 px-4 text-gray-400 font-semibold">Data</th>
                     <th className="text-center py-3 px-4 text-gray-400 font-semibold">Status</th>
+                    <th className="text-center py-3 px-4 text-gray-400 font-semibold">QR</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredSales.length > 0 ? (
                     filteredSales.map((sale) => (
+                      (() => {
+                        const codes = extractQrList(sale);
+                        const qty = sale.quantity || 1;
+                        return (
                       <tr key={sale.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                         <td className="py-3 px-4 text-white font-medium">{sale.events?.title || "Evento Desconhecido"}</td>
                         <td className="py-3 px-4 text-center text-gray-300">{sale.quantity || 1}</td>
@@ -304,11 +353,32 @@ const Sales = () => {
                             {sale.status === "paid" ? "✓ Pago" : sale.status === "pending" ? "⏳ Pendente" : "✗ Cancelado"}
                           </span>
                         </td>
+                        <td className="py-3 px-4 text-center">
+                          {codes.length > 0 ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-border/50 hover:bg-secondary/50"
+                              onClick={() => {
+                                setQrModalTitle(`${sale.events?.title || "Evento"} - ${sale.buyer_name || sale.buyer_email || "Comprador"}`);
+                                setQrList(codes);
+                                setQrQuantity(qty);
+                                setQrModalOpen(true);
+                              }}
+                            >
+                              Ver QR
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-gray-500">N/A</span>
+                          )}
+                        </td>
                       </tr>
+                        );
+                      })()
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-gray-500">
+                      <td colSpan={7} className="py-8 text-center text-gray-500">
                         Nenhuma venda encontrada
                       </td>
                     </tr>
@@ -318,6 +388,45 @@ const Sales = () => {
             </div>
           </CardContent>
         </Card>
+
+        {qrModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="w-full max-w-3xl rounded-xl border border-white/10 bg-card/95 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-white">QR Codes</h2>
+                  <p className="text-xs text-gray-400">{qrModalTitle}</p>
+                </div>
+                <Button variant="outline" onClick={() => setQrModalOpen(false)}>Fechar</Button>
+              </div>
+
+              {qrQuantity > qrList.length && (
+                <p className="mt-3 text-xs text-yellow-400">
+                  Atenção: quantidade ({qrQuantity}) maior que QRs disponíveis ({qrList.length}).
+                </p>
+              )}
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {qrList.map((code, idx) => (
+                  <div key={`${code}-${idx}`} className="rounded-lg border border-border/50 bg-secondary/30 p-3 flex flex-col items-center gap-3">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(code)}`}
+                      alt={`QR ${idx + 1}`}
+                      className="h-44 w-44 rounded bg-white p-2"
+                    />
+                    <a
+                      href={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(code)}`}
+                      download={`qr-${idx + 1}.png`}
+                      className="text-xs text-primary underline"
+                    >
+                      Baixar QR
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
