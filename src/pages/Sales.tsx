@@ -234,6 +234,14 @@ const Sales = () => {
     });
   };
 
+  const getImageSize = async (dataUrl: string) =>
+    await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = dataUrl;
+    });
+
   const sanitizeFileName = (name: string) =>
     name
       .toLowerCase()
@@ -280,12 +288,20 @@ const Sales = () => {
     doc.setFillColor(17, 24, 39);
     doc.roundedRect(cardX, cardY, cardW, cardH, 12, 12, "F");
 
-    // Event image inside card
+    // Event image inside card (contain, no stretch)
     const eventImage = sale.events?.image_url;
     if (eventImage) {
       try {
         const imgData = await fetchAsDataUrl(eventImage);
-        doc.addImage(imgData, "JPEG", cardX + 16, cardY + 16, cardW - 32, 160);
+        const { width, height } = await getImageSize(imgData);
+        const maxW = cardW - 32;
+        const maxH = 160;
+        const scale = Math.min(maxW / width, maxH / height);
+        const drawW = width * scale;
+        const drawH = height * scale;
+        const drawX = cardX + 16 + (maxW - drawW) / 2;
+        const drawY = cardY + 16 + (maxH - drawH) / 2;
+        doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH);
       } catch {}
     }
 
@@ -521,20 +537,61 @@ const Sales = () => {
                         </td>
                         <td className="py-3 px-4 text-center">
                           {codes.length > 0 ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-border/50 hover:bg-secondary/50"
-                              onClick={() => {
-                                setQrModalTitle(`${sale.events?.title || "Evento"} - ${sale.buyer_name || sale.buyer_email || "Comprador"}`);
-                                setQrList(codes);
-                                setQrQuantity(qty);
-                                setQrModalSale(sale);
-                                setQrModalOpen(true);
-                              }}
-                            >
-                              Ver QR
-                            </Button>
+                            <div className="flex flex-col gap-2 items-center">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-border/50 hover:bg-secondary/50"
+                                onClick={() => {
+                                  setQrModalTitle(`${sale.events?.title || "Evento"} - ${sale.buyer_name || sale.buyer_email || "Comprador"}`);
+                                  setQrList(codes);
+                                  setQrQuantity(qty);
+                                  setQrModalSale(sale);
+                                  setQrModalOpen(true);
+                                }}
+                              >
+                                Ver QR
+                              </Button>
+                              {codes.length < qty && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-border/50 hover:bg-secondary/50"
+                                  onClick={async () => {
+                                    if (!sale.id || !sale.event_id) return;
+                                    try {
+                                      setQrLoading(true);
+                                      const { data: sessionData } = await supabase.auth.getSession();
+                                      const accessToken = sessionData.session?.access_token;
+                                      const response = await fetch(
+                                        `${import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co'}/functions/v1/generate-purchase-qrs`,
+                                        {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                            Authorization: `Bearer ${accessToken}`,
+                                          },
+                                          body: JSON.stringify({ purchase_id: sale.id }),
+                                        }
+                                      );
+                                      const data = await response.json();
+                                      if (data?.qr_codes?.length) {
+                                        setQrModalTitle(`${sale.events?.title || "Evento"} - ${sale.buyer_name || sale.buyer_email || "Comprador"}`);
+                                        setQrList(data.qr_codes);
+                                        setQrQuantity(qty);
+                                        setQrModalSale(sale);
+                                        setQrModalOpen(true);
+                                      }
+                                    } finally {
+                                      setQrLoading(false);
+                                    }
+                                  }}
+                                  disabled={qrLoading}
+                                >
+                                  Completar QRs
+                                </Button>
+                              )}
+                            </div>
                           ) : (
                             <Button
                               size="sm"
@@ -600,7 +657,41 @@ const Sales = () => {
                   <h2 className="text-lg font-bold text-white">QR Codes</h2>
                   <p className="text-xs text-gray-400">{qrModalTitle}</p>
                 </div>
-                <Button variant="outline" onClick={() => setQrModalOpen(false)}>Fechar</Button>
+                <div className="flex gap-2">
+                  {qrModalSale && qrList.length < qrQuantity && (
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          setQrLoading(true);
+                          const { data: sessionData } = await supabase.auth.getSession();
+                          const accessToken = sessionData.session?.access_token;
+                          const response = await fetch(
+                            `${import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co'}/functions/v1/generate-purchase-qrs`,
+                            {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${accessToken}`,
+                              },
+                              body: JSON.stringify({ purchase_id: qrModalSale.id }),
+                            }
+                          );
+                          const data = await response.json();
+                          if (data?.qr_codes?.length) {
+                            setQrList(data.qr_codes);
+                          }
+                        } finally {
+                          setQrLoading(false);
+                        }
+                      }}
+                      disabled={qrLoading}
+                    >
+                      Completar QRs
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setQrModalOpen(false)}>Fechar</Button>
+                </div>
               </div>
 
               {qrQuantity > qrList.length && (
