@@ -365,6 +365,12 @@ const Scanner = () => {
                   {result.data.email && (
                     <p><span className="text-muted-foreground">Email:</span> {result.data.email}</p>
                   )}
+                  {result.data.ticket_type && (
+                    <p><span className="text-muted-foreground">Tipo:</span> {result.data.ticket_type}</p>
+                  )}
+                  {result.data.ticket_index && (
+                    <p><span className="text-muted-foreground">Ingresso:</span> {result.data.ticket_index}</p>
+                  )}
                   {result.data.quantity && (
                     <p><span className="text-muted-foreground">Quantidade:</span> {result.data.quantity}</p>
                   )}

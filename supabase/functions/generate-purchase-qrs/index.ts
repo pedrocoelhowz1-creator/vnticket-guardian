@@ -119,6 +119,7 @@ Deno.serve(async (req) => {
         id_ingresso: id,
         email: purchase.buyer_email || purchase.email || '',
         buyer_name: purchase.buyer_name || '',
+        ticket_type: purchase.ticket_type || purchase.ticket_type_name || null,
         ticket_index: i + 1
       };
       qrCodes.push(btoa(JSON.stringify(payload)));

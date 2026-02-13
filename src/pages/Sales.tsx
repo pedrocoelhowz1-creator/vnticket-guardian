@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, ShoppingCart, Loader2 } from "lucide-react";
+import { jsPDF } from "jspdf";
 import type { Session } from "@supabase/supabase-js";
 import logo from "@/assets/logo.png";
 
@@ -41,6 +42,7 @@ const Sales = () => {
   const [qrList, setQrList] = useState<string[]>([]);
   const [qrQuantity, setQrQuantity] = useState<number>(1);
   const [qrLoading, setQrLoading] = useState(false);
+  const [qrModalSale, setQrModalSale] = useState<Sale | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -211,6 +213,91 @@ const Sales = () => {
     }
     return true;
   });
+
+  const decodeQrPayload = (payload: string) => {
+    try {
+      const decoded = atob(payload);
+      return JSON.parse(decoded);
+    } catch {
+      return null;
+    }
+  };
+
+  const fetchAsDataUrl = async (url: string) => {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Failed to read image"));
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const downloadTicketPdf = async (sale: Sale, payloadBase64: string, index: number, total: number) => {
+    const payload = decodeQrPayload(payloadBase64) || {};
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+    const margin = 40;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("VN TICKET", margin, 40);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text("Ingresso Digital", margin, 60);
+
+    // Logo
+    try {
+      const logoData = await fetchAsDataUrl(logo);
+      doc.addImage(logoData, "PNG", pageWidth - 120, 20, 80, 40);
+    } catch {}
+
+    // Event image
+    const eventImage = sale.events?.image_url;
+    if (eventImage) {
+      try {
+        const imgData = await fetchAsDataUrl(eventImage);
+        doc.addImage(imgData, "JPEG", margin, 80, pageWidth - margin * 2, 180);
+      } catch {}
+    }
+
+    const startY = eventImage ? 280 : 90;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(sale.events?.title || "Evento", margin, startY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`Comprador: ${sale.buyer_name || sale.buyer_email || "N/A"}`, margin, startY + 22);
+
+    const ticketType = payload.ticket_type || sale.ticket_type || "N/A";
+    doc.text(`Tipo de ingresso: ${ticketType}`, margin, startY + 40);
+
+    const ticketIndex = payload.ticket_index || index + 1;
+    doc.text(`Ingresso: ${ticketIndex} de ${total}`, margin, startY + 58);
+
+    // Sponsors
+    const sponsors = Array.isArray(sale.events?.sponsors) ? sale.events?.sponsors : [];
+    const sponsorsText = sponsors.length ? sponsors.join(", ") : "N/A";
+    doc.text(`Patrocinadores: ${sponsorsText}`, margin, startY + 76);
+
+    // QR image
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payloadBase64)}`;
+    try {
+      const qrData = await fetchAsDataUrl(qrUrl);
+      doc.addImage(qrData, "PNG", margin, startY + 100, 180, 180);
+    } catch {}
+
+    doc.setFontSize(9);
+    doc.text("Apresente este QR na entrada. Uso único.", margin, pageHeight - 40);
+
+    doc.save(`ingresso-${ticketIndex}.pdf`);
+  };
 
   const extractQrList = (sale: Sale): string[] => {
     const list: string[] = [];
@@ -412,6 +499,7 @@ const Sales = () => {
                                 setQrModalTitle(`${sale.events?.title || "Evento"} - ${sale.buyer_name || sale.buyer_email || "Comprador"}`);
                                 setQrList(codes);
                                 setQrQuantity(qty);
+                                setQrModalSale(sale);
                                 setQrModalOpen(true);
                               }}
                             >
@@ -444,6 +532,7 @@ const Sales = () => {
                                     setQrModalTitle(`${sale.events?.title || "Evento"} - ${sale.buyer_name || sale.buyer_email || "Comprador"}`);
                                     setQrList(data.qr_codes);
                                     setQrQuantity(qty);
+                                    setQrModalSale(sale);
                                     setQrModalOpen(true);
                                   }
                                 } finally {
@@ -498,13 +587,13 @@ const Sales = () => {
                       alt={`QR ${idx + 1}`}
                       className="h-44 w-44 rounded bg-white p-2"
                     />
-                    <a
-                      href={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(code)}`}
-                      download={`qr-${idx + 1}.png`}
-                      className="text-xs text-primary underline"
+                    <Button
+                      variant="outline"
+                      className="w-full border-border/50 hover:bg-secondary/50"
+                      onClick={() => downloadTicketPdf(qrModalSale as Sale, code, idx, qrQuantity)}
                     >
-                      Baixar QR
-                    </a>
+                      Baixar PDF
+                    </Button>
                   </div>
                 ))}
               </div>
