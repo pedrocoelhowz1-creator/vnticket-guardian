@@ -228,6 +228,7 @@ Deno.serve(async (req) => {
 
     // Check vendas table no mesmo banco
     let venda: any = null;
+    let purchase: any = null;
 
     if (isLegacyFormat && foundRecord) {
       if (foundInTable === 'vendas') {
@@ -325,14 +326,37 @@ Deno.serve(async (req) => {
 
     if (!venda) {
       // Try to validate against purchases directly (paid purchases without vendas)
-      const { data: purchaseDirect, error: purchaseDirectError } = await supabase
-        .from('purchases')
-        .select('*')
-        .or(`id.eq.${decodedPayload.id_ingresso},id_compra.eq.${decodedPayload.id_compra}`)
-        .maybeSingle();
+      const purchaseQuery = decodedPayload.purchase_id
+        ? supabase.from('purchases').select('*').eq('id', decodedPayload.purchase_id)
+        : supabase.from('purchases').select('*').or(`id.eq.${decodedPayload.id_ingresso},id_compra.eq.${decodedPayload.id_compra}`);
+
+      const { data: purchaseDirect, error: purchaseDirectError } = await purchaseQuery.maybeSingle();
 
       if (!purchaseDirectError && purchaseDirect) {
         purchase = purchaseDirect;
+        if (purchase.qr_codes && Array.isArray(purchase.qr_codes)) {
+          if (!purchase.qr_codes.includes(qrPayload)) {
+            await supabase.from('checkins').insert({
+              id_compra: decodedPayload.id_compra || qrPayload,
+              id_evento: eventId,
+              id_ingresso: decodedPayload.id_ingresso || qrPayload,
+              buyer_email: decodedPayload.email,
+              validated_by: user.id,
+              status: 'invalid',
+              reason: 'QR não pertence a esta compra',
+              qr_payload: qrPayload
+            });
+
+            return new Response(JSON.stringify({
+              status: 'invalid',
+              reason: 'QR não pertence a esta compra',
+              data: decodedPayload
+            }), {
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+        }
         if (purchase.status === 'paid') {
           console.log('✅ Purchase found and paid (no venda). Allowing validation.');
         } else {
@@ -511,7 +535,6 @@ Deno.serve(async (req) => {
     }
 
     // Cross-check with purchases table (opcional)
-    let purchase: any = null;
     const { data: purchaseData, error: purchaseError } = await supabase
       .from('purchases')
       .select('*')

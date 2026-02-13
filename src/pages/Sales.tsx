@@ -40,6 +40,7 @@ const Sales = () => {
   const [qrModalTitle, setQrModalTitle] = useState("");
   const [qrList, setQrList] = useState<string[]>([]);
   const [qrQuantity, setQrQuantity] = useState<number>(1);
+  const [qrLoading, setQrLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -136,7 +137,8 @@ const Sales = () => {
         status: normalizePurchaseStatus(p),
         events: eventMap.get(p.event_id),
         source: "purchases" as const,
-        qr_payload: p.qr_payload || toQrPayload(p)
+        qr_codes: p.qr_codes || null,
+        qr_payload: (p.qr_codes && p.qr_codes.length > 0) ? null : (p.qr_payload || toQrPayload(p))
       }));
 
       // Enrich paid purchases with qr_code from vendas (if any)
@@ -416,7 +418,42 @@ const Sales = () => {
                               Ver QR
                             </Button>
                           ) : (
-                            <span className="text-xs text-gray-500">N/A</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-border/50 hover:bg-secondary/50"
+                              onClick={async () => {
+                                if (!sale.id || !sale.event_id) return;
+                                try {
+                                  setQrLoading(true);
+                                  const { data: sessionData } = await supabase.auth.getSession();
+                                  const accessToken = sessionData.session?.access_token;
+                                  const response = await fetch(
+                                    `${import.meta.env.VITE_SUPABASE_URL || 'https://qqdtwekialqpakjgbonh.supabase.co'}/functions/v1/generate-purchase-qrs`,
+                                    {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${accessToken}`,
+                                      },
+                                      body: JSON.stringify({ purchase_id: sale.id }),
+                                    }
+                                  );
+                                  const data = await response.json();
+                                  if (data?.qr_codes?.length) {
+                                    setQrModalTitle(`${sale.events?.title || "Evento"} - ${sale.buyer_name || sale.buyer_email || "Comprador"}`);
+                                    setQrList(data.qr_codes);
+                                    setQrQuantity(qty);
+                                    setQrModalOpen(true);
+                                  }
+                                } finally {
+                                  setQrLoading(false);
+                                }
+                              }}
+                              disabled={qrLoading}
+                            >
+                              Gerar QR
+                            </Button>
                           )}
                         </td>
                       </tr>

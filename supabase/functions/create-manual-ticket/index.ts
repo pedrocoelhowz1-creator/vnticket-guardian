@@ -238,7 +238,8 @@ Deno.serve(async (req) => {
       buyer_cpf: buyer_cpf,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      seats: null
+      seats: null,
+      qr_codes: qrCode ? [qrCode] : []
     };
 
     const { error: purchaseError } = await supabase
