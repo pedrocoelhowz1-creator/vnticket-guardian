@@ -63,6 +63,13 @@ const ManualTicket = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<ManualTicketFormData>(initialFormData);
+  const [createdQrCode, setCreatedQrCode] = useState<string | null>(null);
+  const [createdTicketInfo, setCreatedTicketInfo] = useState<{
+    buyerName: string;
+    eventTitle: string;
+    ticketType?: string;
+    saleType: string;
+  } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -212,6 +219,16 @@ const ManualTicket = () => {
       toast({
         title: "Ingresso criado com sucesso!",
         description: `Ingresso manual criado para ${formData.buyer_name}`
+      });
+
+      const ticket = data?.ticket;
+      const selectedEvent = events.find((e) => e.id === formData.event_uuid);
+      setCreatedQrCode(ticket?.qr_code || null);
+      setCreatedTicketInfo({
+        buyerName: formData.buyer_name,
+        eventTitle: selectedEvent?.title || "Evento",
+        ticketType: formData.ticket_type_name || undefined,
+        saleType: formData.sale_type
       });
 
       // Reset form
@@ -435,6 +452,57 @@ const ManualTicket = () => {
               </form>
             </CardContent>
           </Card>
+
+          {createdTicketInfo && (
+            <Card className="mt-6 stats-card neon-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Ticket className="h-5 w-5 text-primary" />
+                  QR Code do Ingresso
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {createdTicketInfo.eventTitle} - {createdTicketInfo.ticketType || "Ingresso"} - {createdTicketInfo.buyerName}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {createdQrCode ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(createdQrCode)}`}
+                      alt="QR Code do ingresso"
+                      className="h-56 w-56 rounded-lg border border-border/50 bg-white p-2"
+                    />
+                    <div className="w-full space-y-2">
+                      <Label className="text-xs text-muted-foreground">Payload (Base64)</Label>
+                      <Input
+                        readOnly
+                        value={createdQrCode}
+                        className="bg-secondary/50 border-border/50 font-mono text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-border/50 hover:bg-secondary/50"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(createdQrCode);
+                          toast({
+                            title: "Copiado",
+                            description: "Payload do QR copiado para a área de transferência"
+                          });
+                        }}
+                      >
+                        Copiar Código
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Este ingresso foi criado como presencial e não possui QR Code.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
     </div>
